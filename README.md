@@ -6,7 +6,7 @@ Implementation of DroidScript runtime for nodejs (Raspberry Pi, other Linux, Win
 The name is intended to remind you of a certain famous movie Droid, the Raspberry Pi, and
 DroidScript for Android devices.
 
-<h2>Purpose<h2>
+<h2>Purpose</h2>
 
 This is not intended to be a replacement for the excellent Android software by Dave Smart,
 but a way to run apps written in DroidScript, on non-Android platforms which can run nodejs.
