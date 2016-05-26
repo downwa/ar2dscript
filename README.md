@@ -3,8 +3,9 @@ Implementation of DroidScript runtime for nodejs (Raspberry Pi, other Linux, Win
 
 <h2>What's in a name?</h2>
 
-The name is intended to remind you of a certain famous movie Droid, the Raspberry Pi, and
-DroidScript for Android devices.
+The name is intended to remind you of a certain famous movie Droid, the 
+<a href="https://www.raspberrypi.org/">Raspberry Pi</a>, and
+<a href="https://play.google.com/store/apps/details?id=com.smartphoneremote.androidscriptfree">DroidScript</a> for Android devices.
 
 <h2>Purpose</h2>
 
