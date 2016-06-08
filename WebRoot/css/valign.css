@@ -1,0 +1,7 @@
+.center {
+    height: 95vh;
+    width: 95vw;
+    text-align: center;
+    vertical-align: middle;
+    display: table-cell;
+}

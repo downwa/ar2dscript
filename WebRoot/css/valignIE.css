@@ -1,0 +1,16 @@
+div.frameT {
+	top: 0;
+	display: inline-block;
+}
+
+div.frameTC {
+	display: inline-block;
+	top: 50%;
+	position: relative;
+}
+
+div.content {
+	display: inline-block;
+	top: -50%;
+	position: relative;
+}

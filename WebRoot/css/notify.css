@@ -1,0 +1,69 @@
+.notify-message {
+    color: black;
+    background: gray;
+    text-align: center;
+    padding: 10px;
+    position:absolute;
+    top: calc(50vh - 50px);
+    left: calc(50vw - 50px);
+    border-style:solid;
+    border-width:1px;
+    border-color:#DDD;
+
+    flex-direction: row;
+    justify-content: center; /* vertically aligns items */
+    align-items: center; /* horizontally aligns items */
+    display: flex; /* Make visible, centered with 'flex' */
+
+    z-index: 1;
+    
+    -webkit-animation: fadeInOut 4s ease-in-out 0s 1; /* Safari, Chrome and Opera >= 12.1 */
+       -moz-animation: fadeInOut 4s ease-in-out 0s 1; /* Firefox < 16 */
+        -ms-animation: fadeInOut 4s ease-in-out 0s 1; /* Internet Explorer */
+         -o-animation: fadeInOut 4s ease-in-out 0s 1; /* Opera < 12.1 */
+            animation: fadeInOut 4s ease-in-out 0s 1;
+}
+.error-message {
+    color: white;
+    background: red;
+    text-align: center;
+    padding: 10px;
+    z-index: 10;
+
+    opacity: 0;
+    -webkit-animation: fadeInOut 4s ease-in-out 0s 1; /* Safari, Chrome and Opera >= 12.1 */
+       -moz-animation: fadeInOut 4s ease-in-out 0s 1; /* Firefox < 16 */
+        -ms-animation: fadeInOut 4s ease-in-out 0s 1; /* Internet Explorer */
+         -o-animation: fadeInOut 4s ease-in-out 0s 1; /* Opera < 12.1 */
+            animation: fadeInOut 4s ease-in-out 0s 1;
+}
+
+@-webkit-keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  5%       { opacity: 1; }
+  90%      { opacity: 1; }
+}
+
+@-moz-keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  5%       { opacity: 1; }
+  90%      { opacity: 1; }
+}
+
+@-ms-keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  5%       { opacity: 1; }
+  90%      { opacity: 1; }
+}
+
+@-o-keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  5%       { opacity: 1; }
+  90%      { opacity: 1; }
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  5%       { opacity: 1; }
+  90%      { opacity: 1; }
+}

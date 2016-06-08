@@ -7,10 +7,16 @@ The name is intended to remind you of a certain famous movie Droid, the
 <a href="https://www.raspberrypi.org/">Raspberry Pi</a>, and
 <a href="https://play.google.com/store/apps/details?id=com.smartphoneremote.androidscriptfree">DroidScript</a> for Android devices.
 
+<h2>License</h2>
+
+The license is for the custom code provided by this project, and is not intended to apply to
+any resources from DroidScript or any other entity which are used by this project.
+
 <h2>Purpose</h2>
 
 This is not intended to be a replacement for the excellent Android software by Dave Smart,
-but a way to run apps written in DroidScript, on non-Android platforms which can run nodejs.
+but a way to run apps written in DroidScript, on non-Android platforms which can run 
+<a href="https://nodejs.org/">nodejs</a>.
 
 The implementation purposely relies on DroidScript assets so as to be as compatible as possible
 and make it easier to closely track DroidScript changes.  Thus, it requires a DroidScript_*.apk
