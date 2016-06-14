@@ -1,0 +1,11 @@
+#!/bin/sh
+
+while [ true ]; do
+    echo "Starting ar2dscript server..."
+    ./serve/main.js || {
+	echo "Terminated with error code: $?"
+	sleep 30
+	grep -q '"debug":true' serve/config.json && { sleep 300; } || reboot # For deployed devices
+    } 
+    sleep 1
+done
