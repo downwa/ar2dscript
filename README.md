@@ -37,3 +37,7 @@ display, split the process-- the image is retrieved from the server but manipula
 Other operations which only require browser resources are handled there.
 
 Presently, existing functionality is being moved into github from an offline project.
+
+<h2>Resources</h2>
+Latest alpha versions of DroidScript apk can be downloaded
+<a href="http://androidscript.org/alpha/">here</a>

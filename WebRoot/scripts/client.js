@@ -3,6 +3,7 @@
  */
 
 var otherSession=false;
+var _objects=[];
 
 function main() {
     var wsurl=window.location.host;
@@ -14,7 +15,7 @@ function main() {
     var xa=title.lastIndexOf('/');
     if(xa > -1) { title=title.substr(xa+1); }
     document.title=title;
-    console.log('Connecting Websocket: url='+wsurl); //+'; cookie='+getCookie("session"));
+    console.log('CON '+wsurl); //+'; cookie='+getCookie("session"));
     var proto='droidscript-gui-protocol';
     client = null;
     
@@ -51,23 +52,25 @@ function main() {
     client.onmessage = function(e) {
         //console.log('message received');
         if (typeof e.data === 'string') {
+	    //alert('data='+e.data);
             var d=JSON.parse(e.data);
-            console.log("RCV " + d.fn+JSON.stringify(d.arguments));
+            console.log("RCV " + d.msgId+ " " + d.fn+JSON.stringify(d.arguments));
 	    if(d.f != '') { 
 		try { eval("window['"+d.fn+"']="+d.f); }
-		catch(e) { throw new Error('ERR: f='+d.f+"; e="+e.message); }
+		catch(e) { throw new Error(e.message+": instantiating "+d.f); }
 	    }
 	    var fun=null;
 	    try { fun=window[d.fn]; }
-	    catch(e) { throw new Error("ERR: fn="+d.fn+"; e="+e.message); }
+	    catch(e) { throw new Error(e.message+": locating function "+d.fn); }
 	    if(fun) {
+		var args=normalizeArgs(d.arguments);
 		try {
-		    var args=d.arguments;
 		    var obj=null; // FIXME
-		    //console.log("fun="+fun.toString());
-		    fun.apply(obj, args);
+		    console.log("      "+d.fn+" "+JSON.stringify(args));
+		    var ret=fun.apply(obj, args);
+		    if(d.cb !== 'N') { send({msgId:d.msgId, arguments:[ret]}); }
 		}
-		catch(e) { throw new Error("ERR: fun="+fun.toString()+"; e="+e.message); }
+		catch(e) { throw new Error(e.message+": executing "+d.fn+": "+fun.toString(), e.fileName, e.lineNumber); }
 	    }
 	    else { throw new Error('Missing function: '+d.fn); }
     //         alert('received: '+d.fn);
@@ -78,6 +81,8 @@ function main() {
         }
     };
 }
+
+////////////////////////////
 
 var dimAmt=0.0;
 function dim() {
@@ -90,6 +95,27 @@ function dim() {
 	    otherSession=true;
 	    client.close();
 	}
+}
+
+// Replace expanded arguments with argument references (by objId)
+function normalizeArgs(args) {
+    for(var xa=0; xa<args.length; xa++) {
+        if(!args[xa]) { continue; }
+        var id=args[xa].id;
+	var obj=args[xa];
+        if(obj && id && id != "" && Object.keys(obj).length == 1) { // Only expands if not already expanded
+            obj=_objects[id];
+            if(!obj) { console.log("MISSING object #"+id); }
+            args[xa]=obj;
+        }
+    }
+    return args;
+}
+
+function d(id) {
+    var o=_objects[id];
+    console.log(JSON.stringify(o));
+    return o;
 }
 
 function send(obj) {

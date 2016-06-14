@@ -1,5 +1,7 @@
 #!/usr/bin/env nodejs
 
+var VERSION="2016.06.08.1";
+
 log("__________________________________________________________________________");
 log("ar2dscript starting...");
 
@@ -15,6 +17,7 @@ var path = require("path");
 var util = require("util");
 var fsp = require('path');
 var fs = require('fs');
+var os = require('os');
 var vm = require('vm');
 
 var options={
@@ -72,6 +75,7 @@ function saveConfig() {
 function updateAppsList() {
     options.appsDir=fsp.join(options.sdcard,"DroidScript");
     var apps=fs.readdirSync(options.appsDir).filter(function (file) {
+	if(file.startsWith('.')) { return false; } // Ignore hidden files
 	var ret=file.endsWith(".spk");
 	if(!ret) {
 	    try { ret=fs.statSync(fsp.join(options.appsDir,file,file)+'.js').isFile(); }
@@ -83,6 +87,7 @@ function updateAppsList() {
     fs.readdirSync(options.apksDir).filter(function (file) { return file.endsWith(".apk"); })
 	.forEach( (file) => { apps.push(file); });
     var dels=[];
+    if(!options.apps) { options.apps=[]; }
     for(var xa=0; xa<options.apps.length; xa++) {
 	var found=false;
 	for(var xb=0; xb<apps.length; xb++) {
@@ -110,6 +115,13 @@ function updateAppsList() {
 	    });
 	}
     }
+    options.apps.sort( (a,b) => {
+	var aa=a.name.toLowerCase();
+	var bb=b.name.toLowerCase();
+	if(aa < bb) { return -1; }
+	if(aa > bb) { return 1; }
+	return 0;
+    });
     return [adds,dels];
 }
 
@@ -135,7 +147,7 @@ function qFlush(sa) {
     while(sa.connection && sa.sq && sa.sq.length > 0) {
         var msg=sa.sq.shift();
         sa.rq.push(msg);
-	log("SND " + msg.fn+JSON.stringify(msg.arguments));
+	log("SND " + msg.msgId+" "+msg.fn+JSON.stringify(msg.arguments));
         sa.connection.sendUTF(JSON.stringify(msg));
     }
 }
@@ -148,7 +160,7 @@ function appConsole(appName) {
 	error:   console.error,
 	info:    console.info,
 	log:     function(data) {
-	    log("    APP "+appName+": "+data);
+	    log("  APP "+appName+": "+data);
 	},
 	time:    console.time,
 	timeEnd: console.timeEnd,
@@ -159,7 +171,7 @@ function appConsole(appName) {
 	dirxml:  console.dir,
 	count:   log,
 	markTimeline: function(msg) {
-	    log("    APP "+appName+" MARK: "+msg);
+	    log("  APP "+appName+" MARK: "+msg);
 	},
 	group:   log,
 	groupCollapsed: log,
@@ -167,8 +179,13 @@ function appConsole(appName) {
     };
 }
 
+var navigator={
+    userAgent:"Android Emulation (ar2dscript)"
+};
+
 // Run app with given session ID
 function runApp(app, session, connection) {
+    //log("runApp: fiber="+Fiber.current);
     if(!app.connections) { app.connections={}; }
     if(!session) { session=0; }
     var sa=app.connections[session]; // app for this session
@@ -194,6 +211,7 @@ function runApp(app, session, connection) {
 	// NOTE: This only keeps one message max in queue.  Clients should check msgId
 	// and if they are behind, ask for full update of screen state
         obj.msgId=sa.msgId++;
+	if(obj.cb === null) { obj.cb='N'; }
 	sa.sq=[obj]; //{msgId:sa.msgId++, cb:cb, payload:obj}];
 	qFlush(sa);
     }
@@ -207,8 +225,10 @@ function runApp(app, session, connection) {
 	setTimeout: setTimeoutFiber, _app: sa,
 	setInterval: setIntervalFiber,
 	readdirFiber: readdirFiber,
-	readScripts: readScripts
+	readScripts: readScripts,
+	navigator: navigator
     };
+    sa.VERSION=VERSION;
     sa.context = new vm.createContext(sandbox);	
     sa.sq=[]; // Send queue
     sa.rq=[]; // Reply queue (messages sent but not yet replied)    
@@ -220,6 +240,7 @@ function runApp(app, session, connection) {
     //sa.setTimeout=setTimeout;
     sa.Fiber=Fiber;
     sa.dirname=__dirname;
+    sa._objects=[];
 
     try { sa.ds=new vm.Script(fs.readFileSync('ar2dscript.js')); }
     catch(e) {
@@ -248,6 +269,7 @@ function runApp(app, session, connection) {
 
 // Read scripts from .apk, .spk, or Apps folder
 function readScripts(appName, scriptNames) {
+    //log("readScripts: fiber="+Fiber.current);
     var rets=[]; // Returns array of length equal to scriptNames length.
     var apk=appName.endsWith(".apk") ? (appName[0] !== '/' ? fsp.join(options.apksDir, appName) : appName) : null;
     var spk=appName.endsWith(".spk") ? fsp.join(options.appsDir, appName) : null;
@@ -265,7 +287,8 @@ function readScripts(appName, scriptNames) {
     }
     else {
 	for(var xa=0; xa<scriptNames.length; xa++) {
-	    var scriptName=scriptNames[xa];
+	    var scriptName= scriptNames[xa];
+	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(options.appsDir, scriptName); }
 	    log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
 	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
 	}
@@ -324,9 +347,10 @@ function normalizePath(fPath) {
     else if(fp.endsWith(".apk")) {
 	return fsp.join(options.apksDir, fp.replace(/\//,fsp.sep));
     }
+    return fPath;
 }
 
-function respond(response, cookies, code, contentType, contentLen, content, redirect) {
+function respond(at,response, cookies, code, contentType, contentLen, content, redirect) {
     if(!code) { code=200; }
     if(!contentType) { contentType="text/html"; }
     if(content) { contentLen=content.length; }
@@ -338,6 +362,7 @@ function respond(response, cookies, code, contentType, contentLen, content, redi
     if(contentLen) { headers['Content-Length']=contentLen; }
     if(redirect)   { headers['Location']=redirect; }
     response.writeHead(code, headers);
+    //log("HEADERS#"+at+" sent: contentLen="+contentLen+";content="+content+"***");
     if(content) { response.write(content); response.end(); }
 }
  
@@ -377,6 +402,7 @@ function backgroundGradient(appName, session, objId) {
 }
 
 function httpHandler(request, response) {
+    console.log("cookie: "+request.headers.cookie);
     var cookies = parseCookies(request.headers.cookie);
     log('REQ ' + request.url); //+"; cookies="+JSON.stringify(cookies));
     if(!cookies.session) { cookies.session=newSession(); }
@@ -389,7 +415,7 @@ function httpHandler(request, response) {
 	    content += '<li><a href="/Apps/'+a.name+'">'+a.name+'</a></li>';
 	}
 	content += "</ul></body></html>";
-	respond(response, cookies, null, null, null, content);
+	respond(1,response, cookies, null, null, null, content);
 	return;
     }
     else if(request.url.indexOf('/Apps/') == 0) {
@@ -405,7 +431,7 @@ function httpHandler(request, response) {
                 var objId=parseInt(filePath.substr(xb+14));
                 var content=backgroundGradient(appName, cookies.session, objId);
                 if(content != "") {
-                    respond(response, cookies, null, "image/svg+xml", null, content);
+                    respond(2,response, cookies, null, "image/svg+xml", null, content);
                     return;
                 }
             }
@@ -414,14 +440,14 @@ function httpHandler(request, response) {
             if(xa == appName.length-1) { appName=appName.substr(0,xa); }
             else {
                 var url=request.url+'/';
-                respond(response, cookies, 301, null, null,"<html><head><title>Moved Permanently</title></head><body>"+
+                respond(3,response, cookies, 301, null, null,"<html><head><title>Moved Permanently</title></head><body>"+
                     "<h1>Moved Permanently: "+url+"</h1></body></html>", url);
                 return;
             }
 //             //log("appName="+appName);
             if(getApp(appName, cookies.session)) { filePath = normalizePath('client.html'); }
             else {
-                respond(response, cookies, null, null, null, "<html><head><title>(No Applications)</title></head>"+
+                respond(4,response, cookies, null, null, null, "<html><head><title>(No Applications)</title></head>"+
                     "<body><h1>(No Applications)</h1></body></html>");
                 return;
             }
@@ -435,7 +461,7 @@ function httpHandler(request, response) {
     // Serve regular files.
     fs.access(filePath, fs.R_OK, (err) => {
 	if(err) {
-	    respond(response, cookies, 404, null, null,"<html><head><title>Not Found</title></head><body>"+
+	    respond(5,response, cookies, 404, null, null,"<html><head><title>Not Found</title></head><body>"+
 		"<h1>Not Found: "+filePath+"</h1></body></html>");
             log('ERR Not found: '+filePath);
 	    return;
@@ -444,7 +470,7 @@ function httpHandler(request, response) {
 	    var stat = fs.statSync(filePath);
 	    response.on('error', function(err) { response.end(); });
             var ctype=getContentType(filePath);
-	    respond(response, cookies, 200, ctype, stat.size);
+	    respond(6,response, cookies, 200, ctype, stat.size);
 	    fs.createReadStream(filePath).pipe(response); // End automatically
 	    return;
 	}
@@ -515,11 +541,12 @@ function dsgui(request) {
 	var c=request.cookies[xa];
 	if(c.name == "session") { session=c.value; break; }
     }
+    log("session="+session+"; len="+options.apps.length);
     if(session) for(var xa=0; xa<options.apps.length; xa++) {
 	var a=options.apps[xa];
 	if(request.resourceURL.pathname == "/Apps/"+a.name+"/") {
 	    connection = request.accept('droidscript-gui-protocol', request.origin);
- 	    log('CON '+request.origin+" for "+a.name+"; session="+session);
+ 	    log('CON '+request.origin+" for "+a.name+"; session="+session+"; fiber="+Fiber.current);
             Fiber(function() { runApp(a, session, connection); }).run();
 	    qFlush(a);
 	    found=true;
@@ -541,8 +568,10 @@ function dsgui(request) {
 /** 'this' should be bound to connection before calling **/
 function handleWsMessage(message) {
     if (message.type === 'utf8') {
-	var obj=JSON.parse(message.utf8Data);
-        log('RCV ' + message.utf8Data);
+	var obj=null;
+	try { obj=JSON.parse(message.utf8Data); }
+	catch(e) { log("JSON Error: "+e+"; data="+message.utf8Data); return; }
+        log('RCV ' + obj.msgId + ' '+JSON.stringify(obj.arguments)); //message.utf8Data);
         handleCallback.call(this,obj);
     }
     else if (message.type === 'binary') {
@@ -551,7 +580,7 @@ function handleWsMessage(message) {
     }
 }
 
-function handleCallback(obj) {
+function getAppForConn(thisConn) {
     // Which app owns this connection?
     for(var xa=0; xa<options.apps.length; xa++) {
         var app=options.apps[xa];
@@ -559,35 +588,49 @@ function handleCallback(obj) {
         //log("CLICK:app="+util.inspect(app, {showHidden: false, depth: 3}));
         for(var session in app.connections) {
             var conn=app.connections[session];
-            if(conn.connection === this) {
-                if(obj.msgId == null) {
-                    var objId=obj.arguments[0];
-                    var onTouch=conn.context._objects[objId].onTouch;
-                    Fiber(function() {
-                        try { onTouch(); }
-                        catch(e) { log(e.stack); }
-                    }).run();
-                    return;
-                }
-                else {
-                    // msgId, cb, payload
-                    for(var xb=0; xb<conn.rq.length; xb++) {
-                        var rcv=conn.rq[xb];
-                        //log("oid="+obj.msgId+";rid="+rcv.msgId);
-                        if(obj.msgId == rcv.msgId) {
-                            conn.rq.splice(xb,1);
-                            //log("CLICK:cb="+util.inspect(rcv.cb, {showHidden: false, depth: 2}));
-                            //log("CLICK:rcv="+util.inspect(rcv, {showHidden: false, depth: 2}));
-                            Fiber(function() {
-                                try { rcv.cb(null, obj.arguments); }
-                                catch(e) { log(e.stack); }
-                            }).run();
-                            return;
-                        }
-                    }
-                }
-            }
-        }
+            if(conn.connection === thisConn) { return {app:app, conn:conn}; }
+	}
+    }
+    return null;
+}
+
+function handleCallback(obj) {
+    //log('Received Message: ' + JSON.stringify(obj));
+    var appConn=getAppForConn(this);
+    var app=appConn.app;
+    var conn=appConn.conn;
+    if(obj.dump) {
+	log("DMP "+JSON.stringify(conn.context._objects));
+	log("DMP "+JSON.stringify(conn.context._objects[obj.id]));
+	return;
+    }
+    if(obj.msgId == null) {
+	var objId=obj.arguments[0];
+	var onTouch=conn.context._objects[objId].onTouch;
+	Fiber(function() {
+	    try { onTouch(); }
+	    catch(e) { log(e.stack); }
+	}).run();
+	return;
+    }
+    else {
+	// msgId, cb, payload
+	for(var xb=0; xb<conn.rq.length; xb++) {
+	    var rcv=conn.rq[xb];
+	    //log("oid="+obj.msgId+";rid="+rcv.msgId);
+	    if(obj.msgId == rcv.msgId) {
+		//log("rcv.msgId="+rcv.msgId+";rcv.cb="+rcv.cb);
+		if(!rcv.cb || rcv.cb === 'N') { continue; } // Ignore if there is no callback
+		conn.rq.splice(xb,1);
+		//log("CLICK:cb="+util.inspect(rcv.cb, {showHidden: false, depth: 2}));
+		//log("CLICK:rcv="+util.inspect(rcv, {showHidden: false, depth: 2}));
+		Fiber(function() {
+		    try { rcv.cb(null, obj.arguments); }
+		    catch(e) { log("handleCallback ERROR (obj="+JSON.stringify(obj)+"; "+e.stack); }
+		}).run();
+		return;
+	    }
+	}
     }
     log('Received Unknown Message: ' + JSON.stringify(obj));
 }
@@ -607,7 +650,7 @@ function onFileChanged(changeType,filePath,fileCurrentStat,filePreviousStat) {
     var addsDels=updateAppsList();
     var adds=addsDels[0],dels=addsDels[1];
     var changedApp=path.basename(path.dirname(filePath));
-    var all=(filePath == 'DroidScript.js');
+    var all=filePath.startsWith('ar2dscript');
     var any=false; // Set true if any specific app was modified
     for(var xa=0; xa<dels.length; xa++) {
         any=true;
@@ -677,35 +720,57 @@ function sleep(ms) {
 }
 
 function readZipAsText(zipFile, files) {
+    //log("readZipAsText: fiber="+Fiber.current);
+    var rets=[];
+    // Return cached zips
+    var anyMiss=false;
+    var tmp=os.tmpdir();
+    for(var xa=0; xa<files.length; xa++) {
+	var cachePath=fsp.join(tmp, zipFile.replace(/\//g,"_")+"#"+files[xa].replace(/\//g,"_"));
+	try { rets[xa]=readFileFiber(cachePath); }
+	catch(e) { rets[xa]=null; anyMiss=true; }
+    }
+    if(!anyMiss) { return rets; }
+    
+    log("readZipAsText: Caching "+zipFile);
     var fiber = Fiber.current;
     //log("readZipAsText: "+zipFile);
-    var rets=[];
     yauzl.open(zipFile, {lazyEntries: true}, function(err, zipfile) {
 	if (err) throw err;
 	zipfile.readEntry();
 	zipfile.on("entry", function(entry) {
 	    //log("  ENTRY: "+entry.fileName);
-	    var found=false;
+	    var anyFound=false;
 	    for(var xa=0; xa<files.length; xa++) {
-		if(entry.fileName === files[xa]) {
-		    found=true;
-		    zipfile.openReadStream(entry, function(err, readStream) {
+		if(rets[xa] === null && entry.fileName === files[xa]) {
+		    anyFound=true;
+		    zipfile.openReadStream(entry, /*(err, readStream) => { fiber.run({err:err,stats:stats}); });
+    var ret=Fiber.yield(); // Pause for exec
+*/					   
+					   
+					   
+					   function(err, readStream) {
 			if (err) throw err;
 			var string='';
 			readStream.on('data', function(part) { string += part; });
-			readStream.on('end', function() { rets[this]=string; zipfile.readEntry(); }.bind(this));
+			readStream.on('end', function() {
+			    rets[this]=string;
+			    var cachePath=fsp.join(tmp, zipFile.replace(/\//g,"_")+"#"+files[this].replace(/\//g,"_"));
+			    Fiber(function() { writeFileFiber(cachePath, string); }).run(); // file, data, options
+			    zipfile.readEntry();
+			}.bind(this));
 		    }.bind(xa));
 		}
 	    }
-	    if(!found) { zipfile.readEntry(); }
+	    if(!anyFound) { zipfile.readEntry(); }
 	});
 	zipfile.on("end", function() { fiber.run(); });
     });
     Fiber.yield();
     //console.log("readZipAsText("+zipFile+") rets[0]="+rets[0]+"***");
+    log("readZipAsText: Cached "+zipFile+" ("+rets.length+" entries)");
     return rets;
 }
-
 
 function setTimeoutFiber(cb, ms) {
     setTimeout(function() { Fiber(cb).run(); }, ms);
@@ -807,17 +872,22 @@ function statFiber(path) {
     return ret.stats;
 }
 
-function readFileFiber(file, options, callback) {
-    if(!callback) { callback=options; options=null; }
+function readFileFiber(file, options) {
     var fiber = Fiber.current;
-    fs.readFile(file, (err, data) => { fiber.run({err:err, data:data}); });
+    fs.readFile(file, options, (err, data) => { fiber.run({err:err, data:data}); });
     var ret=Fiber.yield(); // Pause for exec
     if(ret.err) { throw ret.err; }
     return ret.data;
 }
 
-function accessFiber(path, mode, callback) {
-    if(!callback) { callback=mode; mode=null; }
+function writeFileFiber(file, data, options) {
+    var fiber = Fiber.current;
+    fs.writeFile(file, data, options, (err) => { fiber.run({err:err}); });
+    var ret=Fiber.yield(); // Pause for exec
+    if(ret.err) { throw ret.err; }
+}
+
+function accessFiber(path, mode) {
     var fiber = Fiber.current;
     fs.access(path, (err) => { fiber.run({err:err}); });
     var ret=Fiber.yield(); // Pause for exec
