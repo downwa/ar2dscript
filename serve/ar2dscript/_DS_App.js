@@ -6,7 +6,7 @@
 
 global._nextObjId_=1; // Must start at >0
 
-module.exports = (_app) => {
+/*module.exports = (_app) => {
     global._app=_app;
     var _remote=require('./_rmt.js')(_app);
     global.__rmt = _remote.__rmt;
@@ -26,7 +26,7 @@ module.exports = (_app) => {
 //////////////////////////////////////////////////////////
     };
 };
-
+*/
 /////////////////////////////////////////////////////////////////////////////////
 
 function CreateText(text,width,height,options) {
@@ -47,7 +47,7 @@ function CreateText(text,width,height,options) {
 }
 
 function CreateLayout(type, options) {
-    // type=Linear,Frame,Absolution
+    // type=Linear,Frame,Absolute
     // options=(Linear) Vertical|Horizontal,FillXY
     this.type=type;
     this.background="";
@@ -57,68 +57,65 @@ function CreateLayout(type, options) {
     this.padding=[0,0,0,0];
     this.options=options;
     this.id=_newId(this);
+    this.opts=parseLayoutOptions(options);
+    var elem='DIV'; // FIXME 
+    var htmlObj=$.parseHTML("<"+elem+"></"+elem+">");
+    htmlObj.attribs['id']='obj_'+this.id;
+    if(opts.vAlign == "center") { htmlObj.attribs['class']='center'; }
+    // FIXME: Below reference to s does not update parent object 
+    //var s=htmlObj.attribs['style'];
+    // If in the document tree, could use:
+    // var o=$('#tester');    // Get object with id tester
+    // o.css('width','95vw'); // Set value
+    // NOTE: Try doing this by adding the element to the document tree even before it has been added by the calling program.
+    // NOTE: Just make sure to keep it in a hidden div that is not the one designated to be the main one, e.g.
+    // <div id='main'>  main program layouts added here </div>
+    // <div id='hidden'> hidden layouts here until they are added to main </div>
     
-    __rmt(function(type, options) {
-	function parseLayoutOptions(options) {
-	    // OPTIONS: Left”, “Right”, “Bottom” and “VCenter”, by default objects will be aligned “Top,Center”
-	    // FillXY - Layout should fill its parent (if the only layout, it will fill the screen.
-	    //          Without FillXY, size to minimums, not maximums).
-	    // Horizontal, Vertical
-	    var opts={hAlign:"center", vAlign: "top", fillx:false, filly:false, direction:"vertical"};
-	    if(!options) { options=''; }
-	    var opt=options.toLowerCase();
-	    // Horizontal alignment
-	    if(opt.indexOf('left') > -1) { opts.hAlign="left"; }
-	    if(opt.indexOf('right') > -1) { opts.hAlign="right"; }
-	    if(opt.indexOf('center') > -1) { opts.hAlign="center"; }
-	    // Vertical alignment
-	    if(opt.indexOf('top') > -1) { opts.vAlign="top"; }
-	    if(opt.indexOf('bottom') > -1) { opts.vAlign="bottom"; }
-	    if(opt.indexOf('vcenter') > -1) { opts.vAlign="center"; }
-	    // Horizontal and vertical fill
-	    if(opt.indexOf('fillxy') > -1) { opts.fillx=true; opts.filly=true; }
-	    if(opt.indexOf('fillx') > -1) { opts.fillx=true; }
-	    if(opt.indexOf('filly') > -1) { opts.filly=true; }
-	    // Direction
-	    if(opt.indexOf('vertical') > -1) { opts.direction="vertical"; }
-	    if(opt.indexOf('horizontal') > -1) { opts.direction="horizontal"; }
-	    
-	    return opts;
-	}
-
-	// obj.type == “Linear”, “Frame”, “Absolute”
-	var opts=parseLayoutOptions(options);
-	this.opts=opts;
-	var elem='DIV'; // FIXME 
-	var htmlObj=document.createElement(elem);
-	htmlObj.id='obj_'+this.id;
-	var s=htmlObj.style;
-	if(opts.vAlign == "center") { htmlObj.className='center'; }
-	if(opts.fillx) { s.width='95vw'; }
-	if(opts.filly) { s.height='95vh'; } // Slightly less to avoid scroll bars
-	s.background='black';
-	s.color='grey';
-	this.htmlObj=htmlObj;
-    }, this, arguments);
-    
+    if(opts.fillx) { s.width='95vw'; }
+    if(opts.filly) { s.height='95vh'; } // Slightly less to avoid scroll bars
+    s.background='black';
+    s.color='grey';
+    this.htmlObj=htmlObj;
     return this.id;
 }
 
-function _newId(obj, inArgs) {
+function parseLayoutOptions(options) {
+    // OPTIONS: Left”, “Right”, “Bottom” and “VCenter”, by default objects will be aligned “Top,Center”
+    // FillXY - Layout should fill its parent (if the only layout, it will fill the screen.
+    //          Without FillXY, size to minimums, not maximums).
+    // Horizontal, Vertical
+    var opts={hAlign:"center", vAlign: "top", fillx:false, filly:false, direction:"vertical"};
+    if(!options) { options=''; }
+    var opt=options.toLowerCase();
+    // Horizontal alignment
+    if(opt.indexOf('left') > -1) { opts.hAlign="left"; }
+    if(opt.indexOf('right') > -1) { opts.hAlign="right"; }
+    if(opt.indexOf('center') > -1) { opts.hAlign="center"; }
+    // Vertical alignment
+    if(opt.indexOf('top') > -1) { opts.vAlign="top"; }
+    if(opt.indexOf('bottom') > -1) { opts.vAlign="bottom"; }
+    if(opt.indexOf('vcenter') > -1) { opts.vAlign="center"; }
+    // Horizontal and vertical fill
+    if(opt.indexOf('fillxy') > -1) { opts.fillx=true; opts.filly=true; }
+    if(opt.indexOf('fillx') > -1) { opts.fillx=true; }
+    if(opt.indexOf('filly') > -1) { opts.filly=true; }
+    // Direction
+    if(opt.indexOf('vertical') > -1) { opts.direction="vertical"; }
+    if(opt.indexOf('horizontal') > -1) { opts.direction="horizontal"; }
+    
+    return opts;
+}
+
+function _newId(obj) {
     console.log("_newId obj="+JSON.stringify(obj));
     var id=global._nextObjId_++; // Allocate a new id
-    // Save object storing arguments of calling function
-    if(inArgs) { obj=global._obj(module, inArgs); }
-    global._app._objects[id]=obj;
-console.log("newId["+id+"]: "+JSON.stringify(obj));
-    __rmt(function(id, obj) {
-	_objects[id]=obj;
-    }, this, [id, {obj:obj}]);
+    _objects[id]=obj;
     return id;
 }
 
 function GetModel() {
-    return "Remix compatible ar2dscript v"+global._app.VERSION;
+    return "Remix compatible ar2dscript v"+navigator._VERSION;
 }
 
 function SetOrientation(orient, callback) {

@@ -1,5 +1,14 @@
 #!/bin/sh
 
+# DS="/sdcard/backups/apps/DroidScript_1.15.apk"
+#DS="/sdcard/backups/apps/DroidScript_135a9.apk"
+DS="/sdcard/backups/apps/"
+
+# Examples for specifying DroidScript to use:
+#   Latest: DS="/sdcard/backups/apps/"
+#   Target: DS="/sdcard/backups/apps/DroidScript_1.15.apk" 
+
+export DS
 while [ true ]; do
     echo "Starting ar2dscript server..."
     ./serve/main.js || {
