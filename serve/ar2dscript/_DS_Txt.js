@@ -4,24 +4,24 @@
 
 /** DroidScript Txt emulation **/
 
-module.exports = (_app) => {
-    global._app=_app;
-    var _remote=require('./_rmt.js')(_app);
-    global.__rmt = _remote.__rmt;
-    global.__ret = _remote.__ret;
-    global._obj = _remote._obj;
-    return {
-//////////////////////////////////////////////////////////
-	SetTextSize: SetTextSize
-//////////////////////////////////////////////////////////
-    };
-};
-
 /////////////////////////////////////////////////////////////////////////////////
 
+function _DS_Txt(text,width,height,options) {
+    this.text=text;
+    this.width=width;
+    this.height=height;
+    this.options=options;
+    this.backColor='#000000';
+    this.textColor='#808080'; 
+    var h=_createNode('DIV', _newId(this))
+    h.css('background',this.backColor);
+    h.css('color',this.textColor);
+    h.html(text);
+    this.htmlObj=h;
+    return this.id;
+}
+
 function SetTextSize(size,mode) {
-    __rmt(function(size,mode) {
-	if(parseInt(size) == size) { size += 'pt'; }
-	this.htmlObj.style.fontSize=size;
-    }, this, arguments);
+    if(parseInt(size) == size) { size += 'pt'; }
+    this.htmlObj.css('font-size',this.size=size);
 }

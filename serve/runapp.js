@@ -19,7 +19,7 @@ function runApp(app, session, connection) {
     }
     
     // Initialize application DOM
-    $ = cheerio.load("<html><head><title>"+app.name+"</title></head><body></body></html>");
+    $ = cheerio.load("<html><head><title>"+app.name+"</title><div id='headhide' style='display:none'></div></head><body></body></html>");
     // $.root().toArray()[0].children[0].children.length
     // var save=$('body').clone();
     // $.text()
@@ -48,7 +48,7 @@ function runApp(app, session, connection) {
 //     sa.Fiber=Fiber;
 //     sa.dirname=__dirname;
 //     sa._objects=[];
-    var sandbox={_objects:_objects, navigator:navigator, prompt:prompt};
+    var sandbox={_objects:_objects, _nextObjId_:_nextObjId_, navigator:navigator, prompt:prompt};
     app.context = new vm.createContext(sandbox);	
     loadScripts(ds, ["assets/app.js"], app.context, false)
     loadScripts(app.name, [app.name+'.js'], app.context, false)
@@ -83,11 +83,39 @@ function runApp(app, session, connection) {
 }
 
 var _objects=[];
+_objects[1]={id:1, cls:'App', layouts:[]} // Application object
+var _nextObjId_=2; // Must start at >0
 
 var navigator={
     _VERSION: VERSION,
     userAgent: "Android Emulation for Linux"
 };
+
+function _newId(obj) {
+    obj.id=_nextObjId_++; // Allocate a new id
+    _objects[obj.id]=obj;
+//    console.log("_newId obj id="+obj.id); //JSON.stringify(obj));
+    return obj.id;
+}
+
+// function ck(id,pfx) {
+//     var obj=_objects[id];
+//     if(obj) { console.log(pfx+" CHECK obj id="+id+";obj.id="+obj.id); }
+//     else {  console.log(pfx+" CHECK obj id="+id+";obj NULL"); }
+//     for(var xa=1; xa<5; xa++) {
+// 	obj=_objects[xa];
+// 	if(!obj) { continue; }
+// 	console.log(pfx+"   CHK obj id="+xa+";obj.id="+obj.id);
+//     }
+// }
+
+function _load(cls) {
+    if(eval("typeof "+cls) === 'undefined') {
+	loadScripts(".", ['./ar2dscript/'+cls+'.js'], null, true);
+// 	    try { eval(cls+"=require('./ar2dscript/"+cls+".js')"); }
+// 	    catch(e) { throw new Error("ERROR loading "+cls+"."+fn+": "+e.message); return; }
+    }
+}
 
 function prompt(promptMsg, dftVal) {
     //console.log("promptMsg="+promptMsg+";dftVal="+dftVal);
@@ -103,6 +131,7 @@ id=;args=["App.CreateLayout(Absolute",""]
 id=;args=["App.CreateLayout(Absolute","undefined"]
 */	    
 	var id=promptMsg[0]=='#' ? promptMsg.substr(1) : promptMsg;
+	if(id == '') { id=1; }
 	var args=dftVal.split('\f');
 	//console.log("id="+id+";args="+JSON.stringify(args));
 	var a0=args[0];
@@ -120,11 +149,7 @@ id=;args=["App.CreateLayout(Absolute","undefined"]
 	if(xa > -1) { clsBase=fn.substr(0,xa); cls="_DS_"+clsBase; fn=fn.substr(xa+1); }
 //console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";fn="+fn);
 	//var module=null;
-	if(eval("typeof "+cls) === 'undefined') {
-	    loadScripts(".", ['./ar2dscript/'+cls+'.js'], null, true);
-// 	    try { eval(cls+"=require('./ar2dscript/"+cls+".js')"); }
-// 	    catch(e) { throw new Error("ERROR loading "+cls+"."+fn+": "+e.message); return; }
-	}
+	_load(cls);
 	//module=eval(cls)(_app);
 	for(xa=0; xa<args.length; xa++) {
 	    if(typeof args[xa] === 'string') {
@@ -139,6 +164,7 @@ id=;args=["App.CreateLayout(Absolute","undefined"]
 	try { 
 	    //console.log("CALL "+fn);
 	    var obj=/*global.*/_objects[id];
+	    //ck(id);
 	    if(!obj) { obj={cls:clsBase,id:id}; }
 	    console.log("CALL "+clsBase+"."+fn+" "+JSON.stringify(args));
 	    var ret=f.apply(obj, args); // Passes new object to called function
@@ -149,5 +175,8 @@ id=;args=["App.CreateLayout(Absolute","undefined"]
 	    throw new Error("ERROR executing: "+fn+JSON.stringify(args)+"; id="+id+"; cls="+cls+"; e="+e.stack);
 	}
     }
-    else { return _prompt(promptMsg, dftVal); }
+    else { 
+	console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
+	return _prompt(promptMsg, dftVal); 	
+    }
 }

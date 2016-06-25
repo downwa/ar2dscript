@@ -4,61 +4,51 @@
 
 /** DroidScript Lay emulation **/
 
-module.exports = (_app) => {
-    global._app=_app;
-    var _remote=require('./_rmt.js')(_app);
-    global.__rmt = _remote.__rmt;
-    global.__ret = _remote.__ret;
-    global._obj = _remote._obj;
-    return {
-//////////////////////////////////////////////////////////
-	AddChild: AddChild
-//////////////////////////////////////////////////////////
-    };
-};
-
 /////////////////////////////////////////////////////////////////////////////////
+function _DS_Lay(type, options) {
+    // type=Linear,Frame,Absolute
+    // options=(Linear) Vertical|Horizontal,FillXY
+    this.type=type;
+    this.background="";
+    this.backGradient={color1:'#000000',color2:'#000000',color3:'#000000', 
+                x1:0,y1:0, x2:1,y2:1};
+    this.children=[];
+    this.padding=[0,0,0,0];
+    this.options=options;
+    var opts=_parseLayoutOptions(options);
+    var h=_createNode('DIV', _newId(this))
+    if(opts.vAlign == "center") { h.css('class','center'); }
+    if(opts.fillx) { h.css('width','95vw'); }
+    if(opts.filly) { h.css('height','95vh'); } // Slightly less to avoid scroll bars
+    h.css('background','black');
+    h.css('color','grey');
+    this.htmlObj=h;
+    this.opts=opts;
+    return this.id;
+}
 
 function AddChild(child, order) {
-    child=_app._objects[child];
-    console.log("Lay.AddChild this="+JSON.stringify(this)+"; child="+JSON.stringify(child));
-    _SetParent(child, {id:this.id});
+    //console.log("Lay.AddChild child="+child+";order="+order);
+    child=_objects[child];
+    //console.log("Lay.AddChild this="+this.id+"; child="+child.id+";this.children="+this.children);
+    child.parent={id:this.id};
     // 0 = back, end of list=front (drawn last)
     if(order < 0) { order=-order; }
     if(!order || order > this.children.length) { order=this.children.length; }
     this.children.splice(order, 0, {id:child.id});
-    var args=[{id:child.id}, order];
-    // FIXME: child.id is null
-    //console.log("\n#2 Lay.AddChild this="+JSON.stringify(this)+"; args="+JSON.stringify(args)+"; child.id="+child.id);
-    __rmt(function(child, order) {
-	if(!this) { throw new Error("NULL this"); }
-	if(!child) { throw new Error("NULL child"); }
-	if(order < 0) { order=-order; }
-	if(!order || order > this.children.length) { order=this.children.length; }
-	this.children.splice(order, 0, child);
-	if(this.opts) {
-	    console.log("\nOPTIONS: "+JSON.stringify(this.opts)+";id="+child.id);
-	    var op=this.opts;
-	    if(op.hAlign == 'center') {
-	    }
-	    if(op.vAlign == 'center') {
-	    }
-	    if(op.direction == 'vertical') {
-		//console.log("class frameTC on "+child.id);
-		//child.div.style.display='table';
-		child.odiv=wrapObject(child, child.div);
-	    }
+    if(this.opts) {
+	console.log(" OPTIONS: "+util.inspect(this.opts)+";id="+child.id);
+	var op=this.opts;
+	if(op.hAlign == 'center') {
 	}
-	var div=(child.odiv ? child.odiv : child.div);
-	this.div.appendChild(div);
-    }, this, args);
-}
-
-function _SetParent(obj, parent) {
-    obj.parent={id:parent.id};
-    __rmt(function(obj, parent) {
-	alert('obj='+JSON.stringify(obj)+'; parent='+JSON.stringify(parent));
-	obj.parent={id:parent.id};
-    }, obj, [{id:obj.id}, {id:parent.id}]);
-    
+	if(op.vAlign == 'center') {
+	}
+	if(op.direction == 'vertical') {
+	    //console.log("class frameTC on "+child.id);
+	    //child.div.style.display='table';
+	    //child.odiv=wrapObject(child, child.div);
+	}
+    }
+    //var div=(child.odiv ? child.odiv : child.div);
+    this.htmlObj.append(child.htmlObj);
 }

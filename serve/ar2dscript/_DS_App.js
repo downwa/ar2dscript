@@ -4,83 +4,106 @@
 
 /** DroidScript App emulation **/
 
-global._nextObjId_=1; // Must start at >0
+//console.log(util.inspect(this));
 
-/*module.exports = (_app) => {
-    global._app=_app;
-    var _remote=require('./_rmt.js')(_app);
-    global.__rmt = _remote.__rmt;
-    global.__ret = _remote.__ret;
-    global._obj = _remote._obj;
-    return {
-//////////////////////////////////////////////////////////
-	SetOrientation: SetOrientation,
-	GetOrientation: GetOrientation,
-	ShowProgress:ShowProgress,
-	HideProgress: HideProgress,
-	PreventScreenLock: PreventScreenLock,
-	SetScreenMode: SetScreenMode,
-	GetModel: GetModel,
-	CreateLayout: CreateLayout,
-	CreateText: CreateText
-//////////////////////////////////////////////////////////
-    };
-};
-*/
 /////////////////////////////////////////////////////////////////////////////////
 
 function CreateText(text,width,height,options) {
-    this.text=text;
-    this.width=width;
-    this.height=height;
-    this.options=options;
-    this.backColor='#000000';
-    this.textColor='#808080'; 
-    this.id=_newId(this);
-    __rmt(function(text,width,height,options) {
-	var htmlObj=document.createElement('DIV');
-	htmlObj.id='obj_'+this.id;
-	htmlObj.innerHTML=text;
-	this.htmlObj=htmlObj;
-    }, this, arguments);
-    return this.id;
+    console.log("CreateText: this.id="+this.id);
+    _load("_DS_Txt");
+    return new _DS_Txt(text,width,height,options).id;
 }
 
 function CreateLayout(type, options) {
-    // type=Linear,Frame,Absolute
-    // options=(Linear) Vertical|Horizontal,FillXY
-    this.type=type;
-    this.background="";
-    this.backGradient={color1:'#000000',color2:'#000000',color3:'#000000', 
-                x1:0,y1:0, x2:1,y2:1};
-    this.children=[];
-    this.padding=[0,0,0,0];
-    this.options=options;
-    this.id=_newId(this);
-    this.opts=parseLayoutOptions(options);
-    var elem='DIV'; // FIXME 
-    var htmlObj=$.parseHTML("<"+elem+"></"+elem+">");
-    htmlObj.attribs['id']='obj_'+this.id;
-    if(opts.vAlign == "center") { htmlObj.attribs['class']='center'; }
-    // FIXME: Below reference to s does not update parent object 
-    //var s=htmlObj.attribs['style'];
-    // If in the document tree, could use:
-    // var o=$('#tester');    // Get object with id tester
-    // o.css('width','95vw'); // Set value
-    // NOTE: Try doing this by adding the element to the document tree even before it has been added by the calling program.
-    // NOTE: Just make sure to keep it in a hidden div that is not the one designated to be the main one, e.g.
-    // <div id='main'>  main program layouts added here </div>
-    // <div id='hidden'> hidden layouts here until they are added to main </div>
-    
-    if(opts.fillx) { s.width='95vw'; }
-    if(opts.filly) { s.height='95vh'; } // Slightly less to avoid scroll bars
-    s.background='black';
-    s.color='grey';
-    this.htmlObj=htmlObj;
-    return this.id;
+    console.log("CreateLayout: this.id="+this.id);
+    _load("_DS_Lay");
+    return new _DS_Lay(type, options).id;
 }
 
-function parseLayoutOptions(options) {
+function AddLayout(layout) {
+    layout=_objects[layout];
+    console.log("AddLayout: this.id="+this.id+";layout.id="+layout.id);
+    layout.parent={id:this.id};
+    this.layouts.push({id:layout.id});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // FIXME:
+    
+    Create a function that takes:
+      
+    - id TO ADD TO (of top level BODY tag in this case), 
+    - id OF OBJECT TO ADD (layout in this case)
+    
+    and sends that id, and current snippet of HTML from htmlObj for that object, 
+    to the browser
+    
+    // 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+};
+
+
+function GetModel() {
+    return "Remix compatible ar2dscript v"+navigator._VERSION;
+}
+
+/***********************************************************************8
+var cheerio = require('cheerio');
+
+var $ = cheerio.load(
+    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");     
+$('html').html(
+    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");
+
+var e=$.parseHTML("<div style='width:100vw' id='testme'></div>");    
+$('#headhide').append(e);
+    
+$('#headhide').append($('#testme'))
+
+$.root().html()
+
+$('body').append($('#testme'))
+$('#testme').css('width','95vw')
+     
+*/
+    
+function _createNode(elem, idNum) {
+    var id="obj_"+idNum;
+    $('#headhide').append($.parseHTML("<"+elem+" id="+id+"></"+elem+">"));
+    return $('#'+id);
+}
+
+function _parseLayoutOptions(options) {
     // OPTIONS: Left”, “Right”, “Bottom” and “VCenter”, by default objects will be aligned “Top,Center”
     // FillXY - Layout should fill its parent (if the only layout, it will fill the screen.
     //          Without FillXY, size to minimums, not maximums).
@@ -105,17 +128,6 @@ function parseLayoutOptions(options) {
     if(opt.indexOf('horizontal') > -1) { opts.direction="horizontal"; }
     
     return opts;
-}
-
-function _newId(obj) {
-    console.log("_newId obj="+JSON.stringify(obj));
-    var id=global._nextObjId_++; // Allocate a new id
-    _objects[id]=obj;
-    return id;
-}
-
-function GetModel() {
-    return "Remix compatible ar2dscript v"+navigator._VERSION;
 }
 
 function SetOrientation(orient, callback) {

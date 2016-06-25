@@ -4,17 +4,9 @@
 
 /** DroidScript emulation initialization **/
 
-/*module.exports = (_app) => {
-    //var _remote=require('./_rmt.js')(_app);
-    //var _rmt = _remote._rmt;
-    return {
-*/
 //////////////////////////////
 
 function _Init() {
     console.log("Initializing ar2dscript...");
 }
 
-//////////////////////////////
-//     };
-// };

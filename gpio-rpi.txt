@@ -1,0 +1,64 @@
+From https://youtu.be/Au3Gx7lm4xk
+
+Raspberry Pi 3 Tutorial: Connecting Breadboard and LEDs
+by brianguy 
+
+Published on Jun 19, 2016
+This video demonstrates how to attach a breadboard to a Raspberry Pi 3 with optional touchscreen. LED lights are then installed on the 
+breadboard and turned on/off via the WiringPi software.
+
+Hardware tips:
+* Disconnect power to your Raspberry Pi before attempting this tutorial.
+* Do not connect LEDs directly to the breadboard rows that are already in use by the T cobbler. Use the lower rows that are free.
+* The positive pin (longer leg) of the LED connects in the same numbered row (different letter) as the jumper wire.
+* The negative pin (shorter leg) of the LED connects in the same numbered row (different letter) as one end of the resistor.
+* The other end of the resistor connects in the negative column on the edge of the breadboard (any row).
+* The other end of the jumper wire connects in the same row (any lettered column) as the desired GPIO pin as indicated on the T cobbler.
+
+Example pins:
+Connect LED 1 positive leg to breadboard row 30, column E
+Connect LED 1 negative leg to breadboard row 29, column E
+Connect LED 2 positive leg to breadboard row 28, column E
+Connect LED 2 negative leg to breadboard row 27, column E
+Connect LED 3 positive leg to breadboard row 26, column E
+Connect LED 3 negative leg to breadboard row 25, column E
+Connect Resistor 1 leg 1 to breadboard row 29, column C
+Connect Resistor 1 leg 2 to breadboard 3V negative column, any unused row
+Connect Resistor 2 leg 1 to breadboard row 27, column C
+Connect Resistor 2 leg 2 to breadboard 3V negative column, any unused row
+Connect Resistor 3 leg 1 to breadboard row 25, column C
+Connect Resistor 3 leg 2 to breadboard 3V negative column, any unused row
+Connect Jumper 1 end 1 to breadboard row 30, column A
+Connect Jumper 1 end 2 to the breadboard row that aligns with GPIO 17 (pin 11) on the T cobbler, column C
+Connect Jumper 2 end 1 to breadboard row 28, column A
+Connect Jumper 1 end 2 to the breadboard row that aligns with GPIO 27 (pin 13) on the T cobbler, column C
+Connect Jumper 3 end 1 to breadboard row 26, column A
+Connect Jumper 1 end 2 to the breadboard row that aligns with GPIO 22 (pin 15) on the T cobbler, column C
+
+To install WiringPi, follow the instructions at http://wiringpi.com/download-and-inst...
+
+To change the orientation of the Raspberry Pi Touchscreen and to flip it upside down, add the following line to /boot/config.txt:
+
+lcd_rotate=2
+
+The commands to control the LEDs are as follows.
+
+To set the pins to Output mode:
+gpio -g mode 17 out
+gpio -g mode 27 out
+gpio -g mode 22 out
+
+To turn the LEDs on:
+gpio -g write 17 1
+gpio -g write 27 1
+gpio -g write 22 1
+
+To turn the LEDs off:
+gpio -g write 17 0
+gpio -g write 27 0
+gpio -g write 22 0
+
+Note: the ending 2 in the “gpio -g write 22 2” command in the video is a typo.
+
+Check http://blog.brianguy.com for additional notes.
+Follow @brianguy_cloud on Twitter.
