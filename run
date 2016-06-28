@@ -1,5 +1,23 @@
 #!/bin/sh
 
+uid=$(id -u)
+[ "$uid" != "0" ] && {
+	echo "Restarting as root..."
+	exec sudo "$0"
+}
+
+MODS="colors watchr path fs vm websocket process crypto fibers yauzl http path os cheerio"
+
+nodever=$(nodejs --version 2>/dev/null | sed -e 's/v/((((/g' -e 's/\./)*100)+/g' | bc)
+if [ "$nodever" -le "1025" ]; then
+	echo "Installing new nodejs (nodever=$nodever)"
+	curl -sL https://deb.nodesource.com/setup_4.x | bash -
+	apt-get install -y nodejs
+fi
+
+echo "Checking for modules to install..."
+for mod in $MODS; do [ ! -d "node_modules/$mod" ] && npm install "$mod"; done
+
 # DS="/sdcard/backups/apps/DroidScript_1.15.apk"
 #DS="/sdcard/backups/apps/DroidScript_135a9.apk"
 DS="/sdcard/backups/apps/"
@@ -18,3 +36,4 @@ while [ true ]; do
     } 
     sleep 1
 done
+v0.10.25
