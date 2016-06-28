@@ -30,7 +30,7 @@ if(!ds) { ds=process.cwd(); }
 log("Main: DS="+ds);
 
 if(fs.statSync(ds).isDirectory()) {
-    var apks=fs.readdirSync(ds, null, true).filter( (file) => {
+    var apks=fs.readdirSync(ds, null, true).filter( function(file) {
 	return file.indexOf("DroidScript_") == 0 && file.endsWith(".apk");
     }); // Sorted, finds latest version of apk (if any)
     var apk=(apks.length > 0) ? apks[apks.length-1] : null;
@@ -300,7 +300,7 @@ function readZipAsText(zipFile, files) {
     var fiber = Fiber.current;
     //log("readZipAsText: "+zipFile);
     yauzl.open(zipFile, {lazyEntries: true}, function(err, zipfile) {
-	if (err) throw err;
+	if (err) { log("ERROR: "+err.stack); throw err; }
 	zipfile.readEntry();
 	zipfile.on("entry", function(entry) {
 	    //log("  ENTRY: "+entry.fileName);
