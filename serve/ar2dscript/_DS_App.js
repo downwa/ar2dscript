@@ -25,53 +25,45 @@ function AddLayout(layout) {
     console.log("AddLayout: this.id="+this.id+";layout.id="+layout.id);
     layout.parent={id:this.id};
     this.layouts.push({id:layout.id});
+    var body=$('body');
+    body.append($('#'+layout.id+''))
+    _rmtAdd(body.id, layout.id);
+}
 
+//     - id TO ADD TO (of top level BODY tag in this case), 
+//     - id OF OBJECT TO ADD (layout in this case)
+//     
+//     and sends that id, and current snippet of HTML from htmlObj for that object, 
+//     to the browser
+function _rmtAdd(tgtId, objId) {
+    _send({fn:'add', tgt:tgtId, htm:$('#'+objId+'').html()});
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // FIXME:
-    
-    Create a function that takes:
-      
-    - id TO ADD TO (of top level BODY tag in this case), 
-    - id OF OBJECT TO ADD (layout in this case)
-    
-    and sends that id, and current snippet of HTML from htmlObj for that object, 
-    to the browser
-    
-    // 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-};
-
+function _send(msg) {
+    var stk=new Error().stack.split('\n');
+    for(var xa=0; xa<stk.length; xa++) {
+        var s=stk[xa];
+        if(s.indexOf('/ar2dscript/serve/') > -1) { continue; }
+        if(s.indexOf('/DroidScript_') > -1 && s.indexOf('.apk:assets/app.js') > -1) { continue; }
+        if(s.indexOf('at OnStart (') > -1) {
+            console.log("stk="+s);
+            s=s.replace(/.js:.*/,"").replace(/.*\//,"");
+            var xb=s.indexOf('.apk');
+            if(xb > -1) {
+                s=s.substr(0,xb);
+                xb=s.lastIndexOf('_');
+                if(xb > -1) {
+                    s=s.substr(0,xb);
+                }
+            }
+            console.log("s="+s);
+            break;
+        }
+    }
+    var _app=_apps[s];
+    console.log("_app IS "+_app+"***");
+    _app.connection.sendUTF(JSON.stringify(msg));
+}
 
 function GetModel() {
     return "Remix compatible ar2dscript v"+navigator._VERSION;

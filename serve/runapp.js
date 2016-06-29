@@ -14,8 +14,8 @@ function runApp(app, session, connection) {
 	    log("SND "+objStr);
 	    app.connection.sendUTF(objStr);
 	    
-	    app.connection=connection; // Save new connection
 	}
+        app.connection=connection; // Save new connection
     }
     
     // Initialize application DOM
@@ -48,7 +48,8 @@ function runApp(app, session, connection) {
 //     sa.Fiber=Fiber;
 //     sa.dirname=__dirname;
 //     sa._objects=[];
-    var sandbox={_objects:_objects, _nextObjId_:_nextObjId_, navigator:navigator, prompt:prompt};
+    _apps[app.name]=app; // Save reference since we can't put app into sandbox (only global objects)
+    var sandbox={_objects:_objects, _nextObjId_:_nextObjId_, navigator:navigator, prompt:prompt, _apps:_apps};
     app.context = new vm.createContext(sandbox);	
     loadScripts(ds, ["assets/app.js"], app.context, false)
     loadScripts(app.name, [app.name+'.js'], app.context, false)
@@ -82,6 +83,7 @@ function runApp(app, session, connection) {
     
 }
 
+var _apps=[];
 var _objects=[];
 _objects[1]={id:1, cls:'App', layouts:[]} // Application object
 var _nextObjId_=2; // Must start at >0
