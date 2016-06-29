@@ -87,6 +87,7 @@ var _apps=[];
 var _objects=[];
 _objects[1]={id:1, cls:'App', layouts:[]} // Application object
 var _nextObjId_=2; // Must start at >0
+var _app=null;
 
 var navigator={
     _VERSION: VERSION,
@@ -119,8 +120,52 @@ function _load(cls) {
     }
 }
 
+function _send(fn, args, awaitReturn) {
+    var cb=null;
+    if(awaitReturn) {
+        var fiber=_app.Fiber.current;
+        cb=function(err, data) { fiber.run({err:err, data:data}); }
+    }
+    console.log("_send: _app should be set...");
+    _app.send({fn:fn, arguments:args, cb:cb});
+    if(awaitReturn) { 
+        var ret=_app.Fiber.yield();
+        //console.log("RETURN FROM YIELD: "+JSON.stringify(ret));
+        if(ret.err) { throw err; }
+        return ret.data;
+    }
+}
+
+function _initApp() {
+    var stk=new Error().stack.split('\n');
+    var an=null;
+    for(var xa=0; xa<stk.length; xa++) {
+        s=stk[xa];
+	//console.log("s="+s);
+        if(s.indexOf('/ar2dscript/serve/') > -1) { continue; }
+        if(s.indexOf('/DroidScript_') > -1 && s.indexOf('.apk:assets/app.js') > -1) { continue; }
+        if(s.indexOf('at OnStart (') > -1) {
+            //console.log("stk="+s);
+            an=s.replace(/.js:.*/,"").replace(/.*\//,"");
+            var xb=an.indexOf('.apk');
+            if(xb > -1) {
+                an=an.substr(0,xb);
+                xb=an.lastIndexOf('_');
+                if(xb > -1) { an=an.substr(0,xb); }
+            }
+            //console.log("an="+an);
+            break;
+        }
+    }
+    if(!an) { return; }
+    _app=_apps[an];
+    if(!_app) { throw new Error("Initialization failed: app not found in cache"); }
+    _appName=an;
+}
+
 function prompt(promptMsg, dftVal) {
-    //console.log("promptMsg="+promptMsg+";dftVal="+dftVal);
+    if(!_app) { _initApp(); }
+    //console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";stack="+new Error().stack);
     var h1=promptMsg[0] == '#';
     var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
     if(h1 || (h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))) { // e.g. App.CreateLayout(
@@ -139,7 +184,8 @@ id=;args=["App.CreateLayout(Absolute","undefined"]
 	var a0=args[0];
 	var xa=a0.indexOf('(');
 	var fn=null;
-	var cls="_Main_";
+	const _main="_Main_";
+	var cls=_main;
 	if(xa > -1) {
 	    fn=a0.substr(0, xa);
 	    if(xa < a0.length-1) { args[0]=a0.substr(xa+1); }
@@ -147,7 +193,7 @@ id=;args=["App.CreateLayout(Absolute","undefined"]
 	}
 	else { fn=a0; args.shift(); }
 	xa=fn.indexOf('.');
-	var clsBase="_Main_";
+	var clsBase=_main;
 	if(xa > -1) { clsBase=fn.substr(0,xa); cls="_DS_"+clsBase; fn=fn.substr(xa+1); }
 //console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";fn="+fn);
 	//var module=null;

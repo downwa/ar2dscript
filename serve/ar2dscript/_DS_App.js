@@ -36,31 +36,11 @@ function AddLayout(layout) {
 //     and sends that id, and current snippet of HTML from htmlObj for that object, 
 //     to the browser
 function _rmtAdd(tgtId, objId) {
-    _send({fn:'add', tgt:tgtId, htm:$('#'+objId+'').html()});
+    var html=$('#'+objId+'').html();
+    _send('add', [tgtId, html]);
 }
 
-function _send(msg) {
-    var stk=new Error().stack.split('\n');
-    for(var xa=0; xa<stk.length; xa++) {
-        var s=stk[xa];
-        if(s.indexOf('/ar2dscript/serve/') > -1) { continue; }
-        if(s.indexOf('/DroidScript_') > -1 && s.indexOf('.apk:assets/app.js') > -1) { continue; }
-        if(s.indexOf('at OnStart (') > -1) {
-            console.log("stk="+s);
-            s=s.replace(/.js:.*/,"").replace(/.*\//,"");
-            var xb=s.indexOf('.apk');
-            if(xb > -1) {
-                s=s.substr(0,xb);
-                xb=s.lastIndexOf('_');
-                if(xb > -1) {
-                    s=s.substr(0,xb);
-                }
-            }
-            console.log("s="+s);
-            break;
-        }
-    }
-    var _app=_apps[s];
+function _sendX(msg) {
     console.log("_app IS "+_app+"***");
     _app.connection.sendUTF(JSON.stringify(msg));
 }
