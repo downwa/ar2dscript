@@ -11,9 +11,13 @@ var options={
 
 var colors = require('colors');
 var watchr = require('watchr');
-var fsp = require('path');
-var fs = require('fs');
+var yauzl = require("yauzl"); // Unzip
+var fsp = require('path'); // path join
+var fs = require('fs'); // statSync, readdirSync, readFileSync, readdir, stat, readFile, writeFile, access, createWriteStream
 var vm = require('vm');
+
+// var Fiber = require('fibers'); // Threading
+// Fiber(function() { accessFiber("/sdcard/DroidScript/getIP/Img/getIP.png", fs.R_OK); }).run();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** INITIALIZATION ****************************************/
@@ -39,7 +43,8 @@ if(fs.statSync(ds).isDirectory()) {
     log("Using DS="+ds);
 }
 
-globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber','readdirFiber','__dirname','loadScripts','ds','globalize']);
+globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
+	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip']);
 
 // global.log=log;
 // global.require=require;
@@ -259,7 +264,7 @@ function writeFileFiber(file, data, options) {
 
 function accessFiber(path, mode) {
     var fiber = Fiber.current;
-    fs.access(path, (err) => { fiber.run({err:err}); });
+    fs.access(path, mode, (err) => { fiber.run({err:err}); });
     var ret=Fiber.yield(); // Pause for exec
     if(ret.err) { throw ret.err; }
 }
@@ -281,6 +286,54 @@ function sleep(ms) {
 	fiber.run();
     }, ms);
     Fiber.yield();
+}
+
+// Extract specified files and save to cache (returning list of cache filenames)
+function cacheFromZip(zipFile, files) {
+    var rets=[];
+    // Return cached zips
+    var anyMiss=false;
+    var tmp=os.tmpdir();
+    for(var xa=0; xa<files.length; xa++) {
+	var cachePath=fsp.join(tmp, zipFile.replace(/\//g,"_")+"#"+files[xa].replace(/\//g,"_"));
+	try { accessFiber(cachePath, fs.R_OK); rets[xa]=cachePath; }
+	catch(e) { rets[xa]=null; anyMiss=true; }
+    }
+    if(!anyMiss) { return rets; }
+    log("cacheFromZip : "+zipFile);
+    var fiber = Fiber.current;
+    //log("readZipAsText: "+zipFile);
+    yauzl.open(zipFile, {lazyEntries: true}, function(err, zipfile) {
+	if (err) { log("ERROR: "+err.stack); throw err; }
+	zipfile.readEntry();
+	zipfile.on("entry", function(entry) {
+	    //log("  ENTRY: "+entry.fileName);
+	    var anyFound=false;
+	    for(var xa=0; xa<files.length; xa++) {
+		if(rets[xa] === null && entry.fileName === files[xa]) {
+		    anyFound=true;
+		    zipfile.openReadStream(entry, function(err, readStream) {
+			if (err) throw err;
+			//var string='';
+			var cachePath=fsp.join(tmp, zipFile.replace(/\//g,"_")+"#"+files[this].replace(/\//g,"_"));
+			readStream.pipe(fs.createWriteStream(cachePath));
+			//readStream.on('data', function(part) { string += part; });
+			readStream.on('end', function() {
+			    rets[this]=cachePath; //string;
+			    //Fiber(function() { writeFileFiber(cachePath, string); }).run(); // file, data, options
+			    zipfile.readEntry();
+			}.bind(this));
+		    }.bind(xa));
+		}
+	    }
+	    if(!anyFound) { zipfile.readEntry(); }
+	});
+	zipfile.on("end", function() { fiber.run(); });
+    });
+    Fiber.yield();
+    //console.log("readZipAsText("+zipFile+") rets[0]="+rets[0]+"***");
+    log("cachedFromZip: "+zipFile+" ("+rets.length+" entries)");
+    return rets;
 }
 
 function readZipAsText(zipFile, files) {

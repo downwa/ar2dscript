@@ -21,7 +21,13 @@ function _DS_Txt(text,width,height,options) {
     return this.id;
 }
 
-function SetTextSize(size,mode) {
+function _DS_Txt_SetTextSize(size,mode) {
     if(parseInt(size) == size) { size += 'pt'; }
     this.htmlObj.css('font-size',this.size=size);
+}
+
+function _DS_Txt_SetText(text) {
+    console.log("SetText: this.id="+this.id);
+    this.htmlObj.html(text);
+    _rmtSet(this, this.htmlObj.html());
 }

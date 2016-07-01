@@ -8,86 +8,28 @@ function runApp(app, session, connection) {
     // NOTE: Only one connection per session is supported.  Send message to previous connected tab/window
     // NOTE: to grey out so it appears inactive (as it is), and ask the client to disconnect.
     if(connection) {
-	if(app.connection && app.connection != connection) {
-	    //app.connection.close(); 
-	    var objStr=JSON.stringify({fname:'dim', fn:'', obj:'', arguments:[]});
-	    log("SND "+objStr);
-	    app.connection.sendUTF(objStr);
-	    
-	}
+	//var oldConn=_conns[app.name];
+	//if(oldConn != connection) { _send('dim', null, false, oldConn); }
+	if(app.connection && app.connection != connection) { _send('dim', null, false, app.connection); }
         app.connection=connection; // Save new connection
+        //_conns[app.name]=connection;
     }
-    
-    // Initialize application DOM
-    $ = cheerio.load("<html><head><title>"+app.name+"</title><div id='headhide' style='display:none'></div></head><body></body></html>");
-    // $.root().toArray()[0].children[0].children.length
-    // var save=$('body').clone();
-    // $.text()
-    // $.html()
-    // $('#one').each(function(index, elem) { console.log(this.html()); });
-    // $('head').html("<title>Test</title>")
-    // $('body').attr('style','width:100vw')
-    // $('body').attr()
-    // $('body').attr('style')
-
- 
-    
-    
-    
-//     var sandbox={require:require, console:new appConsole(app.name), 
-// 	setTimeout: setTimeoutFiber, _app: sa,
-// 	setInterval: setIntervalFiber,
-// 	readdirFiber: readdirFiber,
-// 	readScripts: readScripts,
-// 	navigator: navigator
-//     };
-//     sa.sleep = sleep;
-//     sa.VERSION=VERSION;
-//     //sa.connections={};
-//     //sa.setTimeout=setTimeout;
-//     sa.Fiber=Fiber;
-//     sa.dirname=__dirname;
-//     sa._objects=[];
-    _apps[app.name]=app; // Save reference since we can't put app into sandbox (only global objects)
-    var sandbox={_objects:_objects, _nextObjId_:_nextObjId_, navigator:navigator, prompt:prompt, _apps:_apps};
-    app.context = new vm.createContext(sandbox);	
+    var sandbox={_objects:_objects, _nextObjId_:_nextObjId_, _app:g_app, _sendq:null, navigator:navigator, prompt:prompt, a:42};
+    app.context = new vm.createContext(sandbox);
+    console.log("CONTEXT: "+util.inspect(app.context)+"\n***");
     loadScripts(ds, ["assets/app.js"], app.context, false)
     loadScripts(app.name, [app.name+'.js'], app.context, false)
     log("Calling OnStart()");
     vm.runInContext('OnStart()',app.context,{displayErrors:true});
 
-//     vm.runInContext(
-//     try { sa.ds=new vm.Script(fs.readFileSync('ar2dscript.js')); }
-//     catch(e) {
-// 	log(e.stack);
-// 	throw e;
-//     }
-//     var base=sa.name.replace(/.spk/gi, '');
-//     var scrInfos=readScripts(app.name, [base+"/"+base+".js"]);
-//     log("fn="+scrInfos[0].scriptName+"***");
-//     sa.script=new vm.Script(scrInfos[0].script, {filename:scrInfos[0].scriptName});
-//     //sa.script=new vm.Script(fs.readFileSync(fPath),{filename:fPath});
-//     try {
-// 	sa.ds.runInContext(sa.context,{filename:'ar2dscript.js'});
-// 	sa.script.runInContext(sa.context,{filename:'ar2dscript.js'});
-//         //log("Calling OnStart()");
-// 	vm.runInContext('OnStart()',sa.context,{displayErrors:true});
-//     }
-//     catch(e) {
-// 	if(className(e) != "ReferenceError" || e.message != 'OnStart is not defined') {
-// 	    sa.error=e; log(e.stack);
-// 	}
-//     }
-    
-    
-    
 }
 
-var _apps=[];
+var g_app={test:'me'};
+
+var _mid=0;
 var _objects=[];
 _objects[1]={id:1, cls:'App', layouts:[]} // Application object
 var _nextObjId_=2; // Must start at >0
-var _app=null;
 
 var navigator={
     _VERSION: VERSION,
@@ -97,37 +39,29 @@ var navigator={
 function _newId(obj) {
     obj.id=_nextObjId_++; // Allocate a new id
     _objects[obj.id]=obj;
-//    console.log("_newId obj id="+obj.id); //JSON.stringify(obj));
     return obj.id;
 }
-
-// function ck(id,pfx) {
-//     var obj=_objects[id];
-//     if(obj) { console.log(pfx+" CHECK obj id="+id+";obj.id="+obj.id); }
-//     else {  console.log(pfx+" CHECK obj id="+id+";obj NULL"); }
-//     for(var xa=1; xa<5; xa++) {
-// 	obj=_objects[xa];
-// 	if(!obj) { continue; }
-// 	console.log(pfx+"   CHK obj id="+xa+";obj.id="+obj.id);
-//     }
-// }
 
 function _load(cls) {
     if(eval("typeof "+cls) === 'undefined') {
 	loadScripts(".", ['./ar2dscript/'+cls+'.js'], null, true);
-// 	    try { eval(cls+"=require('./ar2dscript/"+cls+".js')"); }
-// 	    catch(e) { throw new Error("ERROR loading "+cls+"."+fn+": "+e.message); return; }
     }
 }
 
-function _send(fn, args, awaitReturn) {
+function _send(fn, args, awaitReturn, connection) {
     var cb=null;
     if(awaitReturn) {
         var fiber=_app.Fiber.current;
         cb=function(err, data) { fiber.run({err:err, data:data}); }
     }
-    console.log("_send: _app should be set...");
-    _app.send({fn:fn, arguments:args, cb:cb});
+    var msg={mid:_mid++, fn:fn, args:args, cb:cb};
+    if(!connection && _app) { connection=_app.connection; }
+    if(connection) { 
+	log("SND "+msg.mid+" "+fn);
+	//console.log("MSG: "+util.inspect(msg));
+	if(_app) { _app.sent=msg; }
+	connection.sendUTF(JSON.stringify(msg)); }
+    else { _sendq=msg; log("QUE "+msg.mid+" "+fn); }
     if(awaitReturn) { 
         var ret=_app.Fiber.yield();
         //console.log("RETURN FROM YIELD: "+JSON.stringify(ret));
@@ -136,35 +70,124 @@ function _send(fn, args, awaitReturn) {
     }
 }
 
-function _initApp() {
-    var stk=new Error().stack.split('\n');
-    var an=null;
-    for(var xa=0; xa<stk.length; xa++) {
-        s=stk[xa];
-	//console.log("s="+s);
-        if(s.indexOf('/ar2dscript/serve/') > -1) { continue; }
-        if(s.indexOf('/DroidScript_') > -1 && s.indexOf('.apk:assets/app.js') > -1) { continue; }
-        if(s.indexOf('at OnStart (') > -1) {
-            //console.log("stk="+s);
-            an=s.replace(/.js:.*/,"").replace(/.*\//,"");
-            var xb=an.indexOf('.apk');
-            if(xb > -1) {
-                an=an.substr(0,xb);
-                xb=an.lastIndexOf('_');
-                if(xb > -1) { an=an.substr(0,xb); }
-            }
-            //console.log("an="+an);
-            break;
-        }
-    }
-    if(!an) { return; }
-    _app=_apps[an];
-    if(!_app) { throw new Error("Initialization failed: app not found in cache"); }
-    _appName=an;
+// function _initApp() {
+//     var stk=new Error().stack.split('\n');
+//     var an=null;
+//     for(var xa=0; xa<stk.length; xa++) {
+//         s=stk[xa];
+// 	//console.log("s="+s);
+//         if(s.indexOf('/ar2dscript/serve/') > -1) { continue; }
+//         if(s.indexOf('/DroidScript_') > -1 && s.indexOf('.apk:assets/app.js') > -1) { continue; }
+//         if(s.indexOf('at OnStart (') > -1) {
+//             //console.log("stk="+s);
+//             an=s.replace(/.js:.*/,"").replace(/.*\//,"");
+//             var xb=an.indexOf('.apk');
+//             if(xb > -1) {
+//                 an=an.substr(0,xb);
+//                 xb=an.lastIndexOf('_');
+//                 if(xb > -1) { an=an.substr(0,xb); }
+//             }
+//             //console.log("an="+an);
+//             break;
+//         }
+//     }
+//     if(!an) { return; }
+//     _app=_apps[an];
+//     if(!_app) { throw new Error("Initialization failed: app not found in cache"); }
+//     _appName=an;
+//     
+//     // Initialize application DOM
+//     $ = cheerio.load("<html><head><title>"+_app.name+"</title><div id='headhide' style='display:none'></div></head><body id='body'></body></html>");
+//     // $.root().toArray()[0].children[0].children.length
+//     // var save=$('body').clone();
+//     // $.text()
+//     // $.html()
+//     // $('#one').each(function(index, elem) { console.log(this.html()); });
+//     // $('head').html("<title>Test</title>")
+//     // $('body').attr('style','width:100vw')
+//     // $('body').attr()
+//     // $('body').attr('style')
+// 
+//     var body=$('body');
+//     console.log("TEST app="+_app.name+";body.id="+body.attr('id')+";htm="+body.html());
+// }
+
+//     - id TO ADD TO (of top level BODY tag in this case), 
+//     - id OF OBJECT TO ADD (layout in this case)
+//     
+//     and sends that id, and current snippet of HTML from htmlObj for that object, 
+//     to the browser
+function _rmtAdd(obj, html) {
+    var tgtId=obj.htmlObj.attr('id');
+    _send('add', [tgtId, html]);
+}
+
+function _rmtSet(obj, html) {
+    var tgtId=obj.htmlObj.attr('id');
+    _send('set', [tgtId, html]);
+}
+
+function _rmtDel(obj) {
+    var tgtId=obj.htmlObj.attr('id');    
+    _send('del', [tgtId]);
+}
+
+/***********************************************************************8
+var cheerio = require('cheerio');
+
+var $ = cheerio.load(
+    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");     
+$('html').html(
+    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");
+
+var e=$.parseHTML("<div style='width:100vw' id='testme'></div>");    
+$('#headhide').append(e);
+    
+$('#headhide').append($('#testme'))
+
+$.root().html()
+
+$('body').append($('#testme'))
+$('#testme').css('width','95vw')
+     
+*/
+    
+function _createNode(elem, idNum) {
+    var id="obj_"+idNum;
+    $('#headhide').append($.parseHTML("<"+elem+" id="+id+"></"+elem+">"));
+    console.log("_createNode: "+id+";root="+$.root().html()+";htm="+$.html('#'+id)+"***");
+    return $('#'+id);
+}
+
+function _parseLayoutOptions(options) {
+    // OPTIONS: Left”, “Right”, “Bottom” and “VCenter”, by default objects will be aligned “Top,Center”
+    // FillXY - Layout should fill its parent (if the only layout, it will fill the screen.
+    //          Without FillXY, size to minimums, not maximums).
+    // Horizontal, Vertical
+    var opts={hAlign:"center", vAlign: "top", fillx:false, filly:false, direction:"vertical"};
+    if(!options) { options=''; }
+    var opt=options.toLowerCase();
+    // Horizontal alignment
+    if(opt.indexOf('left') > -1) { opts.hAlign="left"; }
+    if(opt.indexOf('right') > -1) { opts.hAlign="right"; }
+    if(opt.indexOf('center') > -1) { opts.hAlign="center"; }
+    // Vertical alignment
+    if(opt.indexOf('top') > -1) { opts.vAlign="top"; }
+    if(opt.indexOf('bottom') > -1) { opts.vAlign="bottom"; }
+    if(opt.indexOf('vcenter') > -1) { opts.vAlign="center"; }
+    // Horizontal and vertical fill
+    if(opt.indexOf('fillxy') > -1) { opts.fillx=true; opts.filly=true; }
+    if(opt.indexOf('fillx') > -1) { opts.fillx=true; }
+    if(opt.indexOf('filly') > -1) { opts.filly=true; }
+    // Direction
+    if(opt.indexOf('vertical') > -1) { opts.direction="vertical"; }
+    if(opt.indexOf('horizontal') > -1) { opts.direction="horizontal"; }
+    
+    return opts;
 }
 
 function prompt(promptMsg, dftVal) {
-    if(!_app) { _initApp(); }
+    //if(!_app) { _initApp(); }
     //console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";stack="+new Error().stack);
     var h1=promptMsg[0] == '#';
     var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
@@ -204,12 +227,9 @@ id=;args=["App.CreateLayout(Absolute","undefined"]
 		if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
 	    }
 	}
+	fn=cls+"_"+fn;
 	var f=eval(fn);
-	if(!f) {
-	    throw new Error("UNDEFINED "+fn+JSON.stringify(args)+"; id="+id+"; cls="+cls);
-	    return;
-	}
-	try { 
+// 	try { 
 	    //console.log("CALL "+fn);
 	    var obj=/*global.*/_objects[id];
 	    //ck(id);
@@ -218,10 +238,10 @@ id=;args=["App.CreateLayout(Absolute","undefined"]
 	    var ret=f.apply(obj, args); // Passes new object to called function
 	    //console.log("RET OBJ="+JSON.stringify(obj));
 	    return ret;
-	}
-	catch(e) {
-	    throw new Error("ERROR executing: "+fn+JSON.stringify(args)+"; id="+id+"; cls="+cls+"; e="+e.stack);
-	}
+// 	}
+// 	catch(e) {
+// 	    throw new Error("ERROR executing: "+fn+JSON.stringify(args)+"; id="+id+"; cls="+cls+"; e="+e.stack);
+// 	}
     }
     else { 
 	console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);

@@ -22,12 +22,15 @@ function _DS_Lay(type, options) {
     if(opts.filly) { h.css('height','95vh'); } // Slightly less to avoid scroll bars
     h.css('background','black');
     h.css('color','grey');
+    $('#headhide').append(h); // Not in body, hide in head
     this.htmlObj=h;
+    var lid='#'+this.htmlObj.attr('id');
+    console.log("LAYOUT id="+lid+";"+$.html(lid)+"***");
     this.opts=opts;
     return this.id;
 }
 
-function AddChild(child, order) {
+function _DS_Lay_AddChild(child, order) {
     //console.log("Lay.AddChild child="+child+";order="+order);
     child=_objects[child];
     //console.log("Lay.AddChild this="+this.id+"; child="+child.id+";this.children="+this.children);
@@ -51,4 +54,21 @@ function AddChild(child, order) {
     }
     //var div=(child.odiv ? child.odiv : child.div);
     this.htmlObj.append(child.htmlObj);
+    var lid='#'+child.htmlObj.attr('id');
+    _rmtAdd(this, $.html(lid));
+}
+
+function _DS_Lay_RemoveChild(child) {
+    //console.log("Lay.AddChild child="+child+";order="+order);
+    child=_objects[child];
+    //console.log("Lay.AddChild this="+this.id+"; child="+child.id+";this.children="+this.children);
+    child.parent={};
+    var idx=-1;
+    for(var xa=0; xa<this.children.length; xa++) {
+	// , {id:child.id}
+	if(this.children[xa].id === child.id) { idx=xa; break; }
+    }
+    this.children.splice(idx, 1);
+    $('#headhide').append(child.htmlObj); // Remove from body, hide in head
+    _rmtDel(child);
 }

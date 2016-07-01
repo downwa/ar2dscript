@@ -8,23 +8,16 @@ var WebSocketServer = require('websocket').server;
 var process = require('process'); // cwd
 var crypto = require('crypto'); // sha256 (sessions)
 var Fiber = require('fibers'); // Threading
-var yauzl = require("yauzl"); // Unzip
+//var yauzl = require("yauzl"); // Unzip
 var http = require('http'); // Server
 //var util = require("util"); // inspect
 var fsp = require('path'); // path join
 var fs = require('fs'); // createReadStream
 var os = require('os'); // tmpdir
 
-/*var options={
-    port:80,
-    debug:true,
-    sdcard:"/sdcard",
-    appsDir:null,
-    apksDir:null,
-    apps: []
-};
-*/
-
+var connApps=[]; // app for each connection
+//var _conns=[]; // connection for each app (by name)
+var _apps=[]; // Apps (by name)
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** INITIALIZATION ****************************************/
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,12 +26,12 @@ var os = require('os'); // tmpdir
 //saveConfig();
 startAutoBoots();
 var server = http.createServer(httpHandler);
-server.listen(options.port, function() { log('Server is listening on port '+options.port); });
+server.listen(options.port, function() { log("Server is listening on "+getIPAddresses().join(";")+" port "+options.port); });
 var wsServer = new WebSocketServer({httpServer: server, autoAcceptConnections: false});
 wsServer.on('request', wsHandler);
 
 globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber',
-	  'readFileFiber','readdirFiber','__dirname','loadScripts','ds','globalize','VERSION']);
+	  'readFileFiber','readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','VERSION']);
 loadScripts(".", ["runapp.js"], null, true);
 
 
@@ -46,6 +39,19 @@ loadScripts(".", ["runapp.js"], null, true);
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** IMPLEMENTATION ****************************************/
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+function getIPAddresses() {
+    var ifaces = os.networkInterfaces();
+    var addrs=[];
+    Object.keys(ifaces).forEach(function (ifname) {
+	ifaces[ifname].forEach(function (iface) {
+	    // skip internal (i.e. 127.0.0.1) and non-ipv4 addresses
+	    if ('IPv4' !== iface.family || iface.internal !== false) { return; }
+	    addrs.push(iface.address);
+	});
+    });
+    return addrs;
+}
 
 // function saveConfig() {
 //     fs.writeFile('serve.json', JSON.stringify(options), (err) => {
@@ -124,19 +130,21 @@ function startAutoBoots() {
 function getApp(name, session) {
     // FIXME: verify existence of app in appdir, apksdir first, return null if not found
     var appPath=fsp.join(options.appsDir, name, name + ".js");
-    if(!statFiber(appPath).isFile()) {
-	appPath=fsp.join(options.appsDir, name + ".spk");
-	if(!statFiber(appPath).isFile()) {
-	    appPath=fsp.join(options.apksDir, name + ".apk");
-	    if(!statFiber(appPath).isFile()) { return null; }
-	}
-    }
-    log("getApp: appPath="+appPath);
-    
     try {
-	var appState=fsp.join(os.tmpdir(), "session-" + name + "-" + session + ".json")
-	var app=JSON.parse(readFileFiber(appState));
-	if(app && options.debug) { log(("STATE: "+appState+"="+JSON.stringify(app)).blue); } // console.dir
+	if(!statFiber(appPath).isFile()) {
+	    appPath=fsp.join(options.appsDir, name + ".spk");
+	    if(!statFiber(appPath).isFile()) {
+		appPath=fsp.join(options.apksDir, name + ".apk");
+		if(!statFiber(appPath).isFile()) { return null; }
+	    }
+	}
+	log("getApp: appPath="+appPath);
+	// NOTE: Below is a possible approach for retrieving serialized app state
+	//var appState=fsp.join(os.tmpdir(), "session-" + name + "-" + session + ".json")
+	//var app=JSON.parse(readFileFiber(appState));
+	//if(app && options.debug) { log(("STATE: "+appState+"="+JSON.stringify(app)).blue); } // console.dir
+	var app=_apps[name];
+	if(!app) { app=_apps[name]={name:name}; }
 	return app;
     }
     catch(err) {
@@ -161,7 +169,7 @@ function getApp(name, session) {
 //     while(sa.connection && sa.sq && sa.sq.length > 0) {
 //         var msg=sa.sq.shift();
 //         sa.rq.push(msg);
-// 	log("SND " + msg.msgId+" "+msg.fn+JSON.stringify(msg.arguments));
+// 	log("SND " + msg.mid+" "+msg.fn+JSON.stringify(msg.arguments));
 //         sa.connection.sendUTF(JSON.stringify(msg));
 //     }
 // }
@@ -221,12 +229,12 @@ function getApp(name, session) {
 //     sa.fns=[];
 //     sa.send = function(obj) {
 // 	// Send once connection, queuing awaiting reply.  Call cb when reply arrives.
-// 	//sa.sq.push({msgId:sa.msgId++, cb:cb, payload:obj});
-// 	// NOTE: This only keeps one message max in queue.  Clients should check msgId
+// 	//sa.sq.push({mid:sa.mid++, cb:cb, payload:obj});
+// 	// NOTE: This only keeps one message max in queue.  Clients should check mid
 // 	// and if they are behind, ask for full update of screen state
-//         obj.msgId=sa.msgId++;
+//         obj.mid=sa.mid++;
 // 	if(obj.cb === null) { obj.cb='N'; }
-// 	sa.sq=[obj]; //{msgId:sa.msgId++, cb:cb, payload:obj}];
+// 	sa.sq=[obj]; //{mid:sa.mid++, cb:cb, payload:obj}];
 // 	qFlush(sa);
 //     }
 // //     if(sa.initialized) { // If re-running after initialized, send a context update
@@ -248,7 +256,7 @@ function getApp(name, session) {
 //     sa.rq=[]; // Reply queue (messages sent but not yet replied)    
 //     sa.name=app.name;
 //     sa.options=options;
-//     sa.msgId=0;
+//     sa.mid=0;
 //     sa.sleep = sleep;
 //     //sa.connections={};
 //     //sa.setTimeout=setTimeout;
@@ -330,15 +338,14 @@ function getApp(name, session) {
 
 function normalizePath(fPath) {
     fPath=fPath.split("../").join("/").split("/").join(fsp.sep);
-    //console.log("normalizePath: "+fPath);
-    if(fPath.indexOf('Apps/') != 0) {
+    if(fPath.indexOf('Apps/') != 0) { // Does not start with Apps
 	return fsp.join(process.cwd(), "WebRoot", fPath); // Retrieve system resources
     }
     // Retrieve app resources
-    var fp=fPath.substr(5);
+    var fp=fPath.substr(5); // fPath e.g. Apps/getIP/Img/favicon.png, fp e.g getIP/Img/favicon.png
     var xa=fp.indexOf('/');
     if(xa > -1) {
-	var appName=fp.substr(0,xa);
+	var appName=fp.substr(0,xa); // e.g. getIP
 	fp=fp.substr(xa);
 	if(fp == "/Img/favicon.png") { 
 	    try { 
@@ -347,7 +354,11 @@ function normalizePath(fPath) {
 		return filePath;
 	    }
 	    catch(e) {
-		return fsp.join(process.cwd(),"WebRoot","Sys","Img","Droid1.png"); // If no favicon use default one
+		var filePath=cacheFromZip(ds, ["assets/Img/Droid1.png"])[0];
+		//console.log("CACHED filePath="+filePath);
+		return filePath;
+		//return fsp.join(ds+":assets","Img","Droid1.png"); // If no favicon use default one in DS apk
+		//return fsp.join(process.cwd(),"WebRoot","Sys","Img","Droid1.png"); // If no favicon use default one
 	    }
 	}
 	//console.log("fp="+fp);
@@ -449,80 +460,89 @@ function listAppsApks(listApps, listApks) {
 
 function httpHandler(request, response) {
     Fiber(function() {
-	log(("cookie: "+request.headers.cookie).red);
-	var cookies = parseCookies(request.headers.cookie);
-	log('REQ ' + request.url); //+"; cookies="+JSON.stringify(cookies));
-	if(!cookies.session) { cookies.session=newSession(); }
-	//log('session=' + cookies.session);
-	var filePath=null;
-	if(request.url === "/") {
-	    var content="<html><head><title>Applications</title></head><body><h1>Applications</h1><ul>";
-	    var mod=changedApps();
-	    if(mod.c1 || mod.c2) {
-		apps=listAppsApks(mod.c1, mod.c2);
+	try {
+	    log(("cookie: "+request.headers.cookie).green);
+	    var cookies = parseCookies(request.headers.cookie);
+	    log('REQ ' + request.url); //+"; cookies="+JSON.stringify(cookies));
+	    var url=decodeURI(request.url);
+	    if(!cookies.session) { cookies.session=newSession(); }
+	    //log('session=' + cookies.session);
+	    var filePath=null;
+	    if(url === "/") {
+		var content="<html><head><title>Applications</title></head><body><h1>Applications</h1><ul>";
+		var mod=changedApps();
+		if(mod.c1 || mod.c2) {
+		    apps=listAppsApks(mod.c1, mod.c2);
+		}
+		    
+		for(var xa=0; xa<apps.length; xa++) {
+		    var a=apps[xa];
+		    content += '<li><a href="/Apps/'+a+'">'+a+'</a></li>';
+		}
+		content += "</ul></body></html>";
+		respond(1,response, cookies, null, null, null, content);
+		return;
 	    }
-		
-	    for(var xa=0; xa<apps.length; xa++) {
-		var a=apps[xa];
-		content += '<li><a href="/Apps/'+a+'">'+a+'</a></li>';
-	    }
-	    content += "</ul></body></html>";
-	    respond(1,response, cookies, null, null, null, content);
-	    return;
-	}
-	else if(request.url.indexOf('/Apps/') == 0) {
-	    var appName=request.url.substr(6);
-	    var xa=appName.indexOf('/');
-	    if(xa > -1 && xa < appName.length-1) {
-		appName=appName.substr(0,xa);
-		var file=request.url.substr(1).split('?')[0];
-		filePath = normalizePath(file);
-		//console.log("filePath="+filePath);
-		var xb=filePath.indexOf("/Img/backgrad_");
-		if(xb > -1 && filePath.endsWith(".svg")) {
-		    var objId=parseInt(filePath.substr(xb+14));
-		    var content=backgroundGradient(appName, cookies.session, objId);
-		    if(content != "") {
-			respond(2,response, cookies, null, "image/svg+xml", null, content);
+	    else if(url.indexOf('/Apps/') == 0) {
+		var appName=url.substr(6);
+		var xa=appName.indexOf('/');
+		if(xa > -1 && xa < appName.length-1) {
+		    appName=appName.substr(0,xa);
+		    var file=url.substr(1).split('?')[0];
+		    filePath = normalizePath(file);
+		    var xb=filePath.indexOf("/Img/backgrad_");
+		    if(xb > -1 && filePath.endsWith(".svg")) {
+			var objId=parseInt(filePath.substr(xb+14));
+			var content=backgroundGradient(appName, cookies.session, objId);
+			if(content != "") {
+			    respond(2,response, cookies, null, "image/svg+xml", null, content);
+			    return;
+			}
+		    }
+		}
+		else {
+		    if(xa == appName.length-1) { appName=appName.substr(0,xa); }
+		    else {
+			url+='/';
+			respond(3,response, cookies, 301, null, null,"<html><head><title>Moved Permanently</title></head><body>"+
+			    "<h1>Moved Permanently: "+url+"</h1></body></html>", url);
+			return;
+		    }
+	//             //log("appName="+appName);
+		    if(getApp(appName, cookies.session)) { 
+			filePath = normalizePath('client.html'); }
+		    else {
+			respond(4,response, cookies, null, null, null, "<html><head><title>(No Applications)</title></head>"+
+			    "<body><h1>(No Applications)</h1></body></html>");
 			return;
 		    }
 		}
 	    }
-	    else {
-		if(xa == appName.length-1) { appName=appName.substr(0,xa); }
-		else {
-		    var url=request.url+'/';
-		    respond(3,response, cookies, 301, null, null,"<html><head><title>Moved Permanently</title></head><body>"+
-			"<h1>Moved Permanently: "+url+"</h1></body></html>", url);
-		    return;
-		}
-    //             //log("appName="+appName);
-		if(getApp(appName, cookies.session)) { filePath = normalizePath('client.html'); }
-		else {
-		    respond(4,response, cookies, null, null, null, "<html><head><title>(No Applications)</title></head>"+
-			"<body><h1>(No Applications)</h1></body></html>");
-		    return;
-		}
+	    else if(filePath == null) {
+		var file=url.substr(1).split('?')[0];
+		filePath = normalizePath(file);
 	    }
+	    
+	    // Serve regular files.
+	    try { accessFiber(filePath, fs.R_OK); }
+	    catch(e) {
+		respond(5,response, cookies, 404, null, null,"<html><head><title>Not Found</title></head><body>"+
+		    "<h1>Not Found: "+filePath+"</h1></body></html>");
+		log(('ERR Not found: '+filePath+"; e="+e).red);
+		return;
+	    }
+	    var stat = statFiber(filePath);
+	    response.on('error', function(err) { response.end(); });
+	    var ctype=getContentType(filePath);
+	    respond(6,response, cookies, 200, ctype, stat.size);
+	    fs.createReadStream(filePath).pipe(response); // End automatically
 	}
-	else if(filePath == null) {
-	    var file=request.url.substr(1).split('?')[0];
-	    filePath = normalizePath(file);
-	}
-	
-	// Serve regular files.
-	try { accessFiber(filePath, fs.R_OK); }
 	catch(e) {
-	    respond(5,response, cookies, 404, null, null,"<html><head><title>Not Found</title></head><body>"+
-		"<h1>Not Found: "+filePath+"</h1></body></html>");
-	    log('ERR Not found: '+filePath+"; e="+e);
+	    respond(5,response, cookies, 500, null, null,"<html><head><title>Server Error</title></head><body>"+
+		"<h1>Server Error: "+filePath+"</h1></body></html>");
+	    log(('ERR CRASH '+filePath+"; e="+e.stack).red);
 	    return;
 	}
-	var stat = statFiber(filePath);
-	response.on('error', function(err) { response.end(); });
-	var ctype=getContentType(filePath);
-	respond(6,response, cookies, 200, ctype, stat.size);
-	fs.createReadStream(filePath).pipe(response); // End automatically
     }).run();
 }
 
@@ -601,7 +621,7 @@ function dsgui(request) {
 	reject(request, "No session");
 	return;
     }
-    var appName=fsp.basename(request.resourceURL.pathname);
+    var appName=fsp.basename(decodeURI(request.resourceURL.pathname));
     log("appName="+appName+";session="+session);
     var app=getApp(appName, session);
     if(!app) {
@@ -610,8 +630,13 @@ function dsgui(request) {
     }
     connection = request.accept('droidscript-gui-protocol', request.origin);
     log('CON '+request.origin+" for "+appName+"; session="+session+"; fiber="+Fiber.current);
-    try { Fiber(function() { runApp(app, session, connection); }).run(); }
-    catch(e) { log("runApp("+appName+") ERROR: "+e.stack); }
+    Fiber(function() { 
+	try { connApps[connection]=app; runApp(app, session, connection); }
+	catch(e) {
+	    log(("runApp("+appName+") ERROR: "+e.stack).red);
+	    app.connection.sendUTF(JSON.stringify({mid:0, fn:'alert', args:['Server Error: '+e.message]}));
+	}
+    }).run();
     //qFlush(a);
     
     //loadScripts(".", ["serve.js"], null, true);
@@ -622,13 +647,13 @@ function dsgui(request) {
     });
 }
 
-/** 'this' should be bound to connection before calling **/
+/** NOTE: 'this' should be bound to connection before calling **/
 function handleWsMessage(message) {
     if (message.type === 'utf8') {
 	var obj=null;
 	try { obj=JSON.parse(message.utf8Data); }
 	catch(e) { log("JSON Error: "+e+"; data="+message.utf8Data); return; }
-        log('RCV ' + obj.msgId + ' '+JSON.stringify(obj.arguments)); //message.utf8Data);
+        log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
         handleCallback.call(this,obj);
     }
     else if (message.type === 'binary') {
@@ -637,33 +662,18 @@ function handleWsMessage(message) {
     }
 }
 
-function getAppForConn(thisConn) {
-    // Which app owns this connection?
-    for(var xa=0; xa<options.apps.length; xa++) {
-        var app=options.apps[xa];
-        if(!app.connections) { continue; }
-        //log("CLICK:app="+util.inspect(app, {showHidden: false, depth: 3}));
-        for(var session in app.connections) {
-            var conn=app.connections[session];
-            if(conn.connection === thisConn) { return {app:app, conn:conn}; }
-	}
-    }
-    return null;
-}
-
+//* NOTE: 'this' should be bound to connection before calling **/
 function handleCallback(obj) {
     //log('Received Message: ' + JSON.stringify(obj));
-    var appConn=getAppForConn(this);
-    var app=appConn.app;
-    var conn=appConn.conn;
+    var app=connApps[this];
     if(obj.dump) {
-	log("DMP "+JSON.stringify(conn.context._objects));
-	log("DMP "+JSON.stringify(conn.context._objects[obj.id]));
+	log("DMP "+JSON.stringify(app.context._objects));
+	log("DMP "+JSON.stringify(app.context._objects[obj.id]));
 	return;
     }
-    if(obj.msgId == null) {
-	var objId=obj.arguments[0];
-	var onTouch=conn.context._objects[objId].onTouch;
+    if(obj.mid == null) {
+	var objId=obj.args[0];
+	var onTouch=app.context._objects[objId].onTouch;
 	Fiber(function() {
 	    try { onTouch(); }
 	    catch(e) { log(e.stack); }
@@ -671,22 +681,13 @@ function handleCallback(obj) {
 	return;
     }
     else {
-	// msgId, cb, payload
-	for(var xb=0; xb<conn.rq.length; xb++) {
-	    var rcv=conn.rq[xb];
-	    //log("oid="+obj.msgId+";rid="+rcv.msgId);
-	    if(obj.msgId == rcv.msgId) {
-		//log("rcv.msgId="+rcv.msgId+";rcv.cb="+rcv.cb);
-		if(!rcv.cb || rcv.cb === 'N') { continue; } // Ignore if there is no callback
-		conn.rq.splice(xb,1);
-		//log("CLICK:cb="+util.inspect(rcv.cb, {showHidden: false, depth: 2}));
-		//log("CLICK:rcv="+util.inspect(rcv, {showHidden: false, depth: 2}));
-		Fiber(function() {
-		    try { rcv.cb(null, obj.arguments); }
-		    catch(e) { log("handleCallback ERROR (obj="+JSON.stringify(obj)+"; "+e.stack); }
-		}).run();
-		return;
-	    }
+	if(app.sent && obj.mid == app.sent.mid && app.sent.cb && app.sent.cb === 'N') {
+	    app.sent=null;
+	    Fiber(function() {
+		try { app.sent.cb(null, obj.arguments); }
+		catch(e) { log("handleCallback ERROR (obj="+JSON.stringify(obj)+"; "+e.stack); }
+	    }).run();
+	    return;
 	}
     }
     log('Received Unknown Message: ' + JSON.stringify(obj));

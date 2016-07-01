@@ -54,21 +54,21 @@ function main() {
         if (typeof e.data === 'string') {
 	    //alert('data='+e.data);
             var d=JSON.parse(e.data);
-            console.log("RCV " + d.msgId+ " " + d.fn+JSON.stringify(d.arguments));
-	    if(d.f != '') { 
-		try { eval("window['"+d.fn+"']="+d.f); }
-		catch(e) { throw new Error(e.message+": instantiating "+d.f); }
-	    }
+            console.log("RCV " + d.mid+ " " + d.fn+JSON.stringify(d.args));
+// 	    if(d.f != '') { 
+// 		try { eval("window['"+d.fn+"']="+d.f); }
+// 		catch(e) { throw new Error(e.message+": instantiating "+d.f); }
+// 	    }
 	    var fun=null;
 	    try { fun=window[d.fn]; }
 	    catch(e) { throw new Error(e.message+": locating function "+d.fn); }
 	    if(fun) {
-		var args=normalizeArgs(d.arguments);
+		var args=normalizeArgs(d.args);
 		try {
 		    var obj=null; // FIXME
-		    console.log("      "+d.fn+" "+JSON.stringify(args));
+		    //console.log("      "+d.fn+" "+JSON.stringify(args));
 		    var ret=fun.apply(obj, args);
-		    if(d.cb !== 'N') { send({msgId:d.msgId, arguments:[ret]}); }
+		    if(d.cb !== 'N') { send({mid:d.mid, args:[ret]}); }
 		}
 		catch(e) { throw new Error(e.message+": executing "+d.fn+": "+fun.toString(), e.fileName, e.lineNumber); }
 	    }
@@ -76,13 +76,28 @@ function main() {
     //         alert('received: '+d.fn);
     //         setTimeout(function() {
     //                 console.log("Sending OK response to alert");
-    //                 send({fn:'alertClick', arguments:['ok']});
+    //                 send({fn:'alertClick', args:['ok']});
     //         }, 15000);
         }
     };
 }
 
 ////////////////////////////
+
+function add(id, htm) {
+    var el=document.getElementById(id);
+    el.innerHTML+=htm;
+}
+
+function set(id, htm) {
+    var el=document.getElementById(id);
+    el.innerHTML=htm;
+}
+
+function del(id) {
+    var el=document.getElementById(id);
+    el.parentNode.removeChild(el);
+}
 
 var dimAmt=0.0;
 function dim() {

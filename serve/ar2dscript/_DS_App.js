@@ -8,98 +8,32 @@
 
 /////////////////////////////////////////////////////////////////////////////////
 
-function CreateText(text,width,height,options) {
+function _DS_App_CreateText(text,width,height,options) {
     console.log("CreateText: this.id="+this.id);
     _load("_DS_Txt");
     return new _DS_Txt(text,width,height,options).id;
 }
 
-function CreateLayout(type, options) {
+function _DS_App_CreateLayout(type, options) {
     console.log("CreateLayout: this.id="+this.id);
     _load("_DS_Lay");
     return new _DS_Lay(type, options).id;
 }
 
-function AddLayout(layout) {
+function _DS_App_AddLayout(layout) {
     layout=_objects[layout];
     console.log("AddLayout: this.id="+this.id+";layout.id="+layout.id);
     layout.parent={id:this.id};
     this.layouts.push({id:layout.id});
     var body=$('body');
-    body.append($('#'+layout.id+''))
-    _rmtAdd(body.id, layout.id);
+    var lid='#'+layout.htmlObj.attr('id');
+    body.append($(lid))
+    console.log("AddLayout htm="+$.html(lid));
+    _rmtAdd({htmlObj:body}, $.html(lid));
 }
 
-//     - id TO ADD TO (of top level BODY tag in this case), 
-//     - id OF OBJECT TO ADD (layout in this case)
-//     
-//     and sends that id, and current snippet of HTML from htmlObj for that object, 
-//     to the browser
-function _rmtAdd(tgtId, objId) {
-    var html=$('#'+objId+'').html();
-    _send('add', [tgtId, html]);
-}
-
-function _sendX(msg) {
-    console.log("_app IS "+_app+"***");
-    _app.connection.sendUTF(JSON.stringify(msg));
-}
-
-function GetModel() {
+function _DS_App_GetModel() {
     return "Remix compatible ar2dscript v"+navigator._VERSION;
-}
-
-/***********************************************************************8
-var cheerio = require('cheerio');
-
-var $ = cheerio.load(
-    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");     
-$('html').html(
-    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");
-
-var e=$.parseHTML("<div style='width:100vw' id='testme'></div>");    
-$('#headhide').append(e);
-    
-$('#headhide').append($('#testme'))
-
-$.root().html()
-
-$('body').append($('#testme'))
-$('#testme').css('width','95vw')
-     
-*/
-    
-function _createNode(elem, idNum) {
-    var id="obj_"+idNum;
-    $('#headhide').append($.parseHTML("<"+elem+" id="+id+"></"+elem+">"));
-    return $('#'+id);
-}
-
-function _parseLayoutOptions(options) {
-    // OPTIONS: Left”, “Right”, “Bottom” and “VCenter”, by default objects will be aligned “Top,Center”
-    // FillXY - Layout should fill its parent (if the only layout, it will fill the screen.
-    //          Without FillXY, size to minimums, not maximums).
-    // Horizontal, Vertical
-    var opts={hAlign:"center", vAlign: "top", fillx:false, filly:false, direction:"vertical"};
-    if(!options) { options=''; }
-    var opt=options.toLowerCase();
-    // Horizontal alignment
-    if(opt.indexOf('left') > -1) { opts.hAlign="left"; }
-    if(opt.indexOf('right') > -1) { opts.hAlign="right"; }
-    if(opt.indexOf('center') > -1) { opts.hAlign="center"; }
-    // Vertical alignment
-    if(opt.indexOf('top') > -1) { opts.vAlign="top"; }
-    if(opt.indexOf('bottom') > -1) { opts.vAlign="bottom"; }
-    if(opt.indexOf('vcenter') > -1) { opts.vAlign="center"; }
-    // Horizontal and vertical fill
-    if(opt.indexOf('fillxy') > -1) { opts.fillx=true; opts.filly=true; }
-    if(opt.indexOf('fillx') > -1) { opts.fillx=true; }
-    if(opt.indexOf('filly') > -1) { opts.filly=true; }
-    // Direction
-    if(opt.indexOf('vertical') > -1) { opts.direction="vertical"; }
-    if(opt.indexOf('horizontal') > -1) { opts.direction="horizontal"; }
-    
-    return opts;
 }
 
 function SetOrientation(orient, callback) {
