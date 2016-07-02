@@ -16,7 +16,7 @@ var fsp = require('path'); // path join
 var fs = require('fs'); // statSync, readdirSync, readFileSync, readdir, stat, readFile, writeFile, access, createWriteStream
 var vm = require('vm');
 
-// var Fiber = require('fibers'); // Threading
+var Fiber = require('fibers'); // Threading
 // Fiber(function() { accessFiber("/sdcard/DroidScript/getIP/Img/getIP.png", fs.R_OK); }).run();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +57,19 @@ globalize(['log','require','options','parseCookies','sendCookies','statFiber','a
 // global.readdirFiber=readdirFiber;
 // global.__dirname=__dirname;
 // global.loadScripts=loadScripts;
+
+
+	var sandbox={console:console, process:process, navigator:{_VERSION: 42,userAgent: "test"}, prompt:function() {
+	        console.log("APPTEST5");
+	        console.log("APPTEST5: a="+a);
+	}, a:42};
+	var ctx = new vm.createContext(sandbox);
+	//loadScripts(".", ["test.js"], ctx, true);
+	//loadScripts(".", ["apptest.js"], ctx, true);
+	
+ 	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
+
+
 
 loadScripts(".", ["serve.js"], null, true);
 
@@ -134,11 +147,11 @@ function loadScripts(appName, scriptNames, context, isSystem) {
 	if(scrInfo.script === null) {
 	    throw new Error("Missing "+scrInfo.scriptName);
 	}
-// 	var script=new vm.Script(scrInfo.script, {filename:scrInfo.scriptName});
-// 	if(context) { script.runInContext(context); }
-// 	else { script.runInThisContext(); }
-	if(context) { vm.runInContext(scrInfo.script, context, {filename:scrInfo.scriptName}); }
-	else { vm.runInThisContext(scrInfo.script, {filename:scrInfo.scriptName}); }
+//  	var script=new vm.Script(scrInfo.script, {filename:scrInfo.scriptName});
+//  	if(context) { script.runInContext(context); }
+//  	else { script.runInThisContext(); }
+ 	if(context) { vm.runInContext(scrInfo.script, context, {filename:scrInfo.scriptName}); }
+ 	else { vm.runInThisContext(scrInfo.script, {filename:scrInfo.scriptName}); }
     }
 }
 

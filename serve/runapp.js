@@ -5,6 +5,30 @@ var util = require('util');
 function runApp(app, session, connection) {
     log("RUN "+app.name+"; session="+session+"; connection="+connection+"; VERSION="+VERSION);
     
+    
+    Fiber(function() {
+	function pr() {
+	        console.log("APPTEST3");
+	        console.log("APPTEST3: a="+a);
+	}
+	
+	
+	var sandbox={console:console, process:process, navigator:navigator, prompt:function() {
+	        console.log("APPTEST5");
+	        console.log("APPTEST5: a="+a);
+	}, a:42};
+	var ctx = new vm.createContext(sandbox);
+	//loadScripts(".", ["test.js"], ctx, true);
+	//loadScripts(".", ["apptest.js"], ctx, true);
+	
+ 	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
+    }).run();
+
+
+
+    
+    
+    
     // NOTE: Only one connection per session is supported.  Send message to previous connected tab/window
     // NOTE: to grey out so it appears inactive (as it is), and ask the client to disconnect.
     if(connection) {
@@ -187,7 +211,9 @@ function _parseLayoutOptions(options) {
 }
 
 function prompt(promptMsg, dftVal) {
-    //if(!_app) { _initApp(); }
+    console.log("APPTEST2");
+    console.log("APPTEST2: a="+a);
+//if(!_app) { _initApp(); }
     //console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";stack="+new Error().stack);
     var h1=promptMsg[0] == '#';
     var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
