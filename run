@@ -9,16 +9,23 @@ uid=$(id -u)
 MODS="colors watchr path fs vm websocket process crypto fibers yauzl http path os cheerio"
 
 which bc >/dev/null || apt-get -y install bc
-nodever=$(nodejs --version 2>/dev/null | sed -e 's/v/((((/g' -e 's/\./)*100)+/g' | bc)
-[ "$nodever" = "" ] && nodever=0
+
+NODE=$(which node 2>/dev/null || which nodejs 2>/dev/null)
+
+nodever=$($NODE --version 2>/dev/null | sed -e 's/v/((((/g' -e 's/\./)*100)+/g' | bc)
+[ "$nodever" = "" -o "$NODE" = "" ] && nodever=0
 if [ "$nodever" -le "1025" ]; then
-	which curl >/dev/null || apt-get -y install curl
-	echo "Installing new nodejs (nodever=$nodever)"
-	curl -sL https://deb.nodesource.com/setup_4.x | bash -
-	apt-get install -y nodejs || {
-		echo "Install failed.  Exiting."
-		exit
-	}
+    which apt-get >/dev/null || {
+	echo "apt-get not supported.  Use another method to install nodejs, then try again."
+	exit 1
+    }
+    which curl >/dev/null || apt-get -y install curl
+    echo "Installing new nodejs (nodever=$nodever)"
+    curl -sL https://deb.nodesource.com/setup_4.x | bash -
+    apt-get install -y nodejs || {
+	    echo "Install failed.  Exiting."
+	    exit
+    }
 fi
 
 echo "Checking for modules to install..."
