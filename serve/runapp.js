@@ -1,34 +1,98 @@
+function prompt(promptMsg, dftVal) {
+    console.log("APPTEST2");
+    console.log("APPTEST2: a="+a);
+//if(!_app) { _initApp(); }
+    //console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";stack="+new Error().stack);
+    var h1=promptMsg[0] == '#';
+    var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
+    if(h1 || (h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))) { // e.g. App.CreateLayout(
+/*
+id=;args=["_Init"]
+id=;args=["App.SetOrientation(","Portrait","null"]
+id=;args=["App.PreventScreenLock(true"]
+id=;args=["App.SetScreenMode(","Full"]
+id=;args=["App.CreateLayout(Absolute",""]
+id=;args=["App.CreateLayout(Absolute","undefined"]
+*/	    
+	var id=promptMsg[0]=='#' ? promptMsg.substr(1) : promptMsg;
+	if(id == '') { id=1; }
+	var args=dftVal.split('\f');
+	//console.log("id="+id+";args="+JSON.stringify(args));
+	var a0=args[0];
+	var xa=a0.indexOf('(');
+	var fn=null;
+	const _main="_Main_";
+	var cls=_main;
+	if(xa > -1) {
+	    fn=a0.substr(0, xa);
+	    if(xa < a0.length-1) { args[0]=a0.substr(xa+1); }
+	    else { args.shift(); }
+	}
+	else { fn=a0; args.shift(); }
+	xa=fn.indexOf('.');
+	var clsBase=_main;
+	if(xa > -1) { clsBase=fn.substr(0,xa); cls="_DS_"+clsBase; fn=fn.substr(xa+1); }
+//console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";fn="+fn);
+	//var module=null;
+//	var mod=_load(cls);
+	//module=eval(cls)(_app);
+	
+	if(eval("typeof "+cls) === 'undefined') {
+	    var scrInfo=readScripts(".", ['./ar2dscript/'+cls+'.js'], true)[0];
+	    if(scrInfo.script === null) { throw new Error("Missing "+scrInfo.scriptName); }
+	    eval(scrInfo.script.toString());
+	    //console.log("_loaded: "+_DS_App_GetModel+"***");
+	}
+	
+	
+	
+	for(xa=0; xa<args.length; xa++) {
+	    if(typeof args[xa] === 'string') {
+		if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
+	    }
+	}
+	fn=cls+"_"+fn;
+	//vm.runInThisContext("function "+fn+"() { console.log('TESTMODEL'); return 42; }", {filename:"TEST"});
+	//eval("function "+fn+"() { console.log('TESTMODEL'); return 42; }");
+	
+	var f=eval(fn);
+// 	try { 
+	    //console.log("CALL "+fn);
+	    var obj=/*global.*/_objects[id];
+	    //ck(id);
+	    if(!obj) { obj={cls:clsBase,id:id}; }
+	    console.log("CALL "+clsBase+"."+fn+" "+JSON.stringify(args));
+	    var ret=f.apply(obj, args); // Passes new object to called function
+	    //console.log("RET OBJ="+JSON.stringify(obj));
+	    return ret;
+// 	}
+// 	catch(e) {
+// 	    throw new Error("ERROR executing: "+fn+JSON.stringify(args)+"; id="+id+"; cls="+cls+"; e="+e.stack);
+// 	}
+    }
+    else { 
+	console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
+	return _prompt(promptMsg, dftVal); 	
+    }
+}
+
+function _load(cls) {
+    if(eval("typeof "+cls) === 'undefined') {
+	var scrInfo=readScripts(".", ['./ar2dscript/'+cls+'.js'], true)[0];
+	if(scrInfo.script === null) { throw new Error("Missing "+scrInfo.scriptName); }
+	var mod=eval(scrInfo.script.toString());
+	console.log("_loaded: "+_DS_App_GetModel+"***");
+	return mod;
+    }
+}
+
 var cheerio = require('cheerio');
 var vm = require('vm');
 var util = require('util');
 
 function runApp(app, session, connection) {
     log("RUN "+app.name+"; session="+session+"; connection="+connection+"; VERSION="+VERSION);
-    
-    
-    Fiber(function() {
-	function pr() {
-	        console.log("APPTEST3");
-	        console.log("APPTEST3: a="+a);
-	}
-	
-	
-	var sandbox={console:console, process:process, navigator:navigator, prompt:function() {
-	        console.log("APPTEST5");
-	        console.log("APPTEST5: a="+a);
-	}, a:42};
-	var ctx = new vm.createContext(sandbox);
-	//loadScripts(".", ["test.js"], ctx, true);
-	//loadScripts(".", ["apptest.js"], ctx, true);
-	
- 	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
-    }).run();
 
-
-
-    
-    
-    
     // NOTE: Only one connection per session is supported.  Send message to previous connected tab/window
     // NOTE: to grey out so it appears inactive (as it is), and ask the client to disconnect.
     if(connection) {
@@ -38,9 +102,23 @@ function runApp(app, session, connection) {
         app.connection=connection; // Save new connection
         //_conns[app.name]=connection;
     }
-    var sandbox={_objects:_objects, _nextObjId_:_nextObjId_, _app:g_app, _sendq:null, navigator:navigator, prompt:prompt, a:42};
+    var sandbox={_objects:_objects, _nextObjId_:_nextObjId_, _app:g_app, _sendq:null, navigator:navigator, 
+	console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, log:log, a:42};
     app.context = new vm.createContext(sandbox);
-    console.log("CONTEXT: "+util.inspect(app.context)+"\n***");
+
+    // Evaluates the source code of functions in the new context
+    // This will ensure that the functions use the global context of 'app.context'
+//     vm.runInContext("var fsp = require('path'); // path join\n\n",
+// 	    app.context, {filename: "main.js", displayErrors:true});
+    vm.runInContext(
+	loadScripts.toString()+'\n\n'+
+	readScripts.toString(), 
+	    app.context, {filename: "main.js", displayErrors:true});
+    vm.runInContext(
+	prompt.toString()+'\n\n'+
+	_load.toString(),
+	    app.context, {filename: "runapp.js", displayErrors:true});
+
     loadScripts(ds, ["assets/app.js"], app.context, false)
     loadScripts(app.name, [app.name+'.js'], app.context, false)
     log("Calling OnStart()");
@@ -64,12 +142,6 @@ function _newId(obj) {
     obj.id=_nextObjId_++; // Allocate a new id
     _objects[obj.id]=obj;
     return obj.id;
-}
-
-function _load(cls) {
-    if(eval("typeof "+cls) === 'undefined') {
-	loadScripts(".", ['./ar2dscript/'+cls+'.js'], null, true);
-    }
 }
 
 function _send(fn, args, awaitReturn, connection) {
@@ -208,69 +280,4 @@ function _parseLayoutOptions(options) {
     if(opt.indexOf('horizontal') > -1) { opts.direction="horizontal"; }
     
     return opts;
-}
-
-function prompt(promptMsg, dftVal) {
-    console.log("APPTEST2");
-    console.log("APPTEST2: a="+a);
-//if(!_app) { _initApp(); }
-    //console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";stack="+new Error().stack);
-    var h1=promptMsg[0] == '#';
-    var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
-    if(h1 || (h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))) { // e.g. App.CreateLayout(
-/*
-id=;args=["_Init"]
-id=;args=["App.SetOrientation(","Portrait","null"]
-id=;args=["App.PreventScreenLock(true"]
-id=;args=["App.SetScreenMode(","Full"]
-id=;args=["App.CreateLayout(Absolute",""]
-id=;args=["App.CreateLayout(Absolute","undefined"]
-*/	    
-	var id=promptMsg[0]=='#' ? promptMsg.substr(1) : promptMsg;
-	if(id == '') { id=1; }
-	var args=dftVal.split('\f');
-	//console.log("id="+id+";args="+JSON.stringify(args));
-	var a0=args[0];
-	var xa=a0.indexOf('(');
-	var fn=null;
-	const _main="_Main_";
-	var cls=_main;
-	if(xa > -1) {
-	    fn=a0.substr(0, xa);
-	    if(xa < a0.length-1) { args[0]=a0.substr(xa+1); }
-	    else { args.shift(); }
-	}
-	else { fn=a0; args.shift(); }
-	xa=fn.indexOf('.');
-	var clsBase=_main;
-	if(xa > -1) { clsBase=fn.substr(0,xa); cls="_DS_"+clsBase; fn=fn.substr(xa+1); }
-//console.log("promptMsg="+promptMsg+";dftVal="+dftVal+";fn="+fn);
-	//var module=null;
-	_load(cls);
-	//module=eval(cls)(_app);
-	for(xa=0; xa<args.length; xa++) {
-	    if(typeof args[xa] === 'string') {
-		if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
-	    }
-	}
-	fn=cls+"_"+fn;
-	var f=eval(fn);
-// 	try { 
-	    //console.log("CALL "+fn);
-	    var obj=/*global.*/_objects[id];
-	    //ck(id);
-	    if(!obj) { obj={cls:clsBase,id:id}; }
-	    console.log("CALL "+clsBase+"."+fn+" "+JSON.stringify(args));
-	    var ret=f.apply(obj, args); // Passes new object to called function
-	    //console.log("RET OBJ="+JSON.stringify(obj));
-	    return ret;
-// 	}
-// 	catch(e) {
-// 	    throw new Error("ERROR executing: "+fn+JSON.stringify(args)+"; id="+id+"; cls="+cls+"; e="+e.stack);
-// 	}
-    }
-    else { 
-	console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
-	return _prompt(promptMsg, dftVal); 	
-    }
 }

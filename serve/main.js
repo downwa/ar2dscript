@@ -1,5 +1,51 @@
 #!/usr/bin/env nodejs
 
+function loadScripts(appName, scriptNames, context, isSystem) {
+    var scrInfos=readScripts(appName, scriptNames, isSystem);
+    for(var xa=0; xa<scrInfos.length; xa++) {
+	var scrInfo=scrInfos[xa];
+	if(scrInfo.script === null) {
+	    throw new Error("Missing "+scrInfo.scriptName);
+	}
+//  	var script=new vm.Script(scrInfo.script, {filename:scrInfo.scriptName});
+//  	if(context) { script.runInContext(context); }
+//  	else { script.runInThisContext(); }
+ 	if(context) { vm.runInContext(scrInfo.script, context, {filename:scrInfo.scriptName}); }
+ 	else { 
+	    //console.log("runInThisContext: "+scrInfo.script+"***");
+	    vm.runInThisContext(scrInfo.script, {filename:scrInfo.scriptName}); }
+    }
+}
+
+function readScripts(appName, scriptNames, isSystem) { // Read scripts from .apk, .spk, or Apps folder
+    //log("readScripts: fiber="+Fiber.current);
+    var rets=[]; // Returns array of length equal to scriptNames length.
+    var apk=appName.endsWith(".apk") ? (appName[0] !== '/' ? fsp.join(options.apksDir, appName) : appName) : null;
+    var spk=appName.endsWith(".spk") ? fsp.join(options.appsDir, appName) : null;
+    if(apk || spk) {
+	aspk=apk ? apk : spk;
+	try {
+	    var scrs=readZipAsText(aspk, scriptNames);
+	    for(var xa=0; xa<scriptNames.length; xa++) {
+		rets.push({script:scrs[xa], scriptName: aspk+":"+scriptNames[xa]});
+	    }
+	}
+	catch(e) {
+	    log("Error locating "+aspk+": "+scriptName+"; "+e.stack);
+	}
+    }
+    else {
+	var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
+	for(var xa=0; xa<scriptNames.length; xa++) {
+	    var scriptName= scriptNames[xa];
+	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
+	    log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
+	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
+	}
+    }
+    return rets;
+}
+
 var options={
     port:80,
     debug:true,
@@ -44,7 +90,7 @@ if(fs.statSync(ds).isDirectory()) {
 }
 
 globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
-	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip']);
+	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts']);
 
 // global.log=log;
 // global.require=require;
@@ -59,17 +105,17 @@ globalize(['log','require','options','parseCookies','sendCookies','statFiber','a
 // global.loadScripts=loadScripts;
 
 
-	var sandbox={console:console, process:process, navigator:{_VERSION: 42,userAgent: "test"}, prompt:function() {
-	        console.log("APPTEST5");
-	        console.log("APPTEST5: a="+a);
-	}, a:42};
-	var ctx = new vm.createContext(sandbox);
-	//loadScripts(".", ["test.js"], ctx, true);
-	//loadScripts(".", ["apptest.js"], ctx, true);
-	
- 	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
-
-
+// 	var sandbox={console:console, process:process, navigator:{_VERSION: 42,userAgent: "test"}, prompt:function() {
+// 	        console.log("APPTEST5");
+// 	        console.log("APPTEST5: a="+a);
+// 	}, a:42};
+// 	var ctx = new vm.createContext(sandbox);
+// 	//loadScripts(".", ["test.js"], ctx, true);
+// 	//loadScripts(".", ["apptest.js"], ctx, true);
+// 	
+//  	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
+// 
+// 
 
 loadScripts(".", ["serve.js"], null, true);
 
@@ -139,51 +185,6 @@ function onWatchResult(err,watcherInstance,isWatching){
 //////////////////////////////////////// Utility Functions //////////////////////////////////////////
 /***************************************************************************************************/
 
-
-function loadScripts(appName, scriptNames, context, isSystem) {
-    var scrInfos=readScripts(appName, scriptNames, isSystem);
-    for(var xa=0; xa<scrInfos.length; xa++) {
-	var scrInfo=scrInfos[xa];
-	if(scrInfo.script === null) {
-	    throw new Error("Missing "+scrInfo.scriptName);
-	}
-//  	var script=new vm.Script(scrInfo.script, {filename:scrInfo.scriptName});
-//  	if(context) { script.runInContext(context); }
-//  	else { script.runInThisContext(); }
- 	if(context) { vm.runInContext(scrInfo.script, context, {filename:scrInfo.scriptName}); }
- 	else { vm.runInThisContext(scrInfo.script, {filename:scrInfo.scriptName}); }
-    }
-}
-
-// Read scripts from .apk, .spk, or Apps folder
-function readScripts(appName, scriptNames, isSystem) {
-    //log("readScripts: fiber="+Fiber.current);
-    var rets=[]; // Returns array of length equal to scriptNames length.
-    var apk=appName.endsWith(".apk") ? (appName[0] !== '/' ? fsp.join(options.apksDir, appName) : appName) : null;
-    var spk=appName.endsWith(".spk") ? fsp.join(options.appsDir, appName) : null;
-    if(apk || spk) {
-	aspk=apk ? apk : spk;
-	try {
-	    var scrs=readZipAsText(aspk, scriptNames);
-	    for(var xa=0; xa<scriptNames.length; xa++) {
-		rets.push({script:scrs[xa], scriptName: aspk+":"+scriptNames[xa]});
-	    }
-	}
-	catch(e) {
-	    log("Error locating "+aspk+": "+scriptName+"; "+e.stack);
-	}
-    }
-    else {
-	var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
-	for(var xa=0; xa<scriptNames.length; xa++) {
-	    var scriptName= scriptNames[xa];
-	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
-	    log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
-	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
-	}
-    }
-    return rets;
-}
 
 ///////////////////// LOGGING ////////////////////////////
 
