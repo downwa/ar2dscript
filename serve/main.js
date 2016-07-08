@@ -212,7 +212,7 @@ function _send(fn, args, app, awaitReturn) {
     if(awaitReturn) { 
         var ret=app.Fiber.yield();
         //console.log("RETURN FROM YIELD: "+JSON.stringify(ret)+"***");
-        if(ret.err) { throw err; }
+        if(ret.err) { throw ret.err; }
         return ret.data;
     }
 }

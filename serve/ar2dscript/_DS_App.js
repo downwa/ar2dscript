@@ -47,7 +47,18 @@ function _DS_App_GetPackageName() {
 }
 
 function _DS_App_GetRunningServices() {
-    
+//     var fiber=_app.Fiber.current;
+//     //ps.lookup({command: 'node',psargs: 'ax'}, function(err, resultList ) {
+//     ps.lookup({psargs: 'axu'}, function(err, data ) { 
+// 	data.forEach(function( process ){
+// 	    if( process ){
+// 		console.log( 'USER: %s, PID: %s, COMMAND: %s, ARGUMENTS: %s', process.user, process.pid, process.command, process.arguments );
+// 	    }
+// 	});	
+// 	fiber.run({err:err, data:data}); });
+//     var ret=_app.Fiber.yield();
+//     if(ret.err) { throw ret.err; }
+//     return ret.data;
 }
 
 function SetOrientation(orient, callback) {

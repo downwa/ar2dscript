@@ -6,6 +6,7 @@ const colorsafe=require('colors/safe');
 const cheerio = require('cheerio');
 const util = require('util');
 const cp = require('child_process');
+const ps = require('ps-node');
 const vm = require('vm');
 
 function runApp(app, session, connection) {
@@ -20,7 +21,7 @@ function runApp(app, session, connection) {
 	}
 	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
 	    console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, cheerio:cheerio, //require:require,
-	    colors:colorsafe, os:os, fsp:fsp, cp:cp,
+	    colors:colorsafe, os:os, fsp:fsp, cp:cp, ps:ps,
 	    setTimeout:setTimeoutFiber, setInterval:setIntervalFiber
 	};
 	app.context = new vm.createContext(sandbox);
