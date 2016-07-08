@@ -7,8 +7,7 @@
 //////////////////////////////
 
 function _Main___Init() {
-    console.log("Initializing ar2dscript...");
-    console.log("GLOBAL: "+util.inspect(a)+"\n***");
+   // console.log("Initializing ar2dscript...");
     $ = cheerio.load("<html><head><title>"+_app.name+"</title><div id='headhide' style='display:none'></div></head><body id='body'></body></html>");
     // $.root().toArray()[0].children[0].children.length
     // var save=$('body').clone();
@@ -21,6 +20,6 @@ function _Main___Init() {
     // $('body').attr('style')
 
     var body=$('body');
-    console.log("_Main___Init: app="+_app.name+";body.id="+body.attr('id')+";htm="+body.html());
+    //console.log("_Main___Init: app="+_app.name+";body.id="+body.attr('id')+";htm="+body.html());
 }
 

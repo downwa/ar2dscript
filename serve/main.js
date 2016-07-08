@@ -1,4 +1,9 @@
 #!/usr/bin/env nodejs
+/* Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
+ * Licensed under the MIT License (MIT)
+ */
+
+var _mid=0;
 
 var options={
     port:80,
@@ -44,7 +49,8 @@ if(fs.statSync(ds).isDirectory()) {
 }
 
 globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
-	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip']);
+	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
+	  'setTimeoutFiber','setIntervalFiber']);
 
 // global.log=log;
 // global.require=require;
@@ -59,17 +65,17 @@ globalize(['log','require','options','parseCookies','sendCookies','statFiber','a
 // global.loadScripts=loadScripts;
 
 
-	var sandbox={console:console, process:process, navigator:{_VERSION: 42,userAgent: "test"}, prompt:function() {
-	        console.log("APPTEST5");
-	        console.log("APPTEST5: a="+a);
-	}, a:42};
-	var ctx = new vm.createContext(sandbox);
-	//loadScripts(".", ["test.js"], ctx, true);
-	//loadScripts(".", ["apptest.js"], ctx, true);
-	
- 	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
-
-
+// 	var sandbox={console:console, process:process, navigator:{_VERSION: 42,userAgent: "test"}, prompt:function() {
+// 	        console.log("APPTEST5");
+// 	        console.log("APPTEST5: a="+a);
+// 	}, a:42};
+// 	var ctx = new vm.createContext(sandbox);
+// 	//loadScripts(".", ["test.js"], ctx, true);
+// 	//loadScripts(".", ["apptest.js"], ctx, true);
+// 	
+//  	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
+// 
+// 
 
 loadScripts(".", ["serve.js"], null, true);
 
@@ -147,16 +153,12 @@ function loadScripts(appName, scriptNames, context, isSystem) {
 	if(scrInfo.script === null) {
 	    throw new Error("Missing "+scrInfo.scriptName);
 	}
-//  	var script=new vm.Script(scrInfo.script, {filename:scrInfo.scriptName});
-//  	if(context) { script.runInContext(context); }
-//  	else { script.runInThisContext(); }
  	if(context) { vm.runInContext(scrInfo.script, context, {filename:scrInfo.scriptName}); }
  	else { vm.runInThisContext(scrInfo.script, {filename:scrInfo.scriptName}); }
     }
 }
 
-// Read scripts from .apk, .spk, or Apps folder
-function readScripts(appName, scriptNames, isSystem) {
+function readScripts(appName, scriptNames, isSystem) { // Read scripts from .apk, .spk, or Apps folder
     //log("readScripts: fiber="+Fiber.current);
     var rets=[]; // Returns array of length equal to scriptNames length.
     var apk=appName.endsWith(".apk") ? (appName[0] !== '/' ? fsp.join(options.apksDir, appName) : appName) : null;
@@ -178,11 +180,41 @@ function readScripts(appName, scriptNames, isSystem) {
 	for(var xa=0; xa<scriptNames.length; xa++) {
 	    var scriptName= scriptNames[xa];
 	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
-	    log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
+	    //log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
 	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
 	}
     }
     return rets;
+}
+
+function _send(fn, args, app, awaitReturn) {
+    var cb=null;
+    if(awaitReturn) {
+        var fiber=app.Fiber.current;
+        cb=function(err, args) { fiber.run({err:err, data:args[0]}); }
+    }
+    var msg={mid:_mid++, fn:fn, args:args, cb:cb};
+    if(app.connection) {
+	//log("SND "+msg.mid+" "+fn);
+	//console.log("MSG: "+util.inspect(msg));
+	if(app._sendq) {
+	    app.sent.push(app._sendq);
+	    app.connection.sendUTF(JSON.stringify(app._sendq));
+	    app._sendq=null;
+	}
+	app.sent.push(msg);
+	app.connection.sendUTF(JSON.stringify(msg)); 
+    }
+    else {
+	app._sendq=msg;
+	log("QUE "+msg.mid+" "+fn); 
+    }
+    if(awaitReturn) { 
+        var ret=app.Fiber.yield();
+        //console.log("RETURN FROM YIELD: "+JSON.stringify(ret)+"***");
+        if(ret.err) { throw err; }
+        return ret.data;
+    }
 }
 
 ///////////////////// LOGGING ////////////////////////////

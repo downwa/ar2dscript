@@ -17,7 +17,16 @@ function _DS_Lay(type, options) {
     this.options=options;
     var opts=_parseLayoutOptions(options);
     var h=_createNode('DIV', _newId(this))
-    if(opts.vAlign == "center") { h.css('class','center'); }
+    h.css('display','table-cell');
+    
+    if(opts.vAlign == "center") { h.css('vertical-align','middle'); }
+    else if(opts.vAlign == "bottom") { h.css('vertical-align','bottom'); }
+    else { h.css('vertical-align','top'); }
+    
+    if(opts.hAlign == "center") { h.css('text-align','center'); }
+    else if(opts.hAlign == "right") { h.css('text-align','right'); }
+    else { h.css('text-align','left'); }
+    
     if(opts.fillx) { h.css('width','95vw'); }
     if(opts.filly) { h.css('height','95vh'); } // Slightly less to avoid scroll bars
     h.css('background','black');
@@ -25,9 +34,8 @@ function _DS_Lay(type, options) {
     $('#headhide').append(h); // Not in body, hide in head
     this.htmlObj=h;
     var lid='#'+this.htmlObj.attr('id');
-    console.log("LAYOUT id="+lid+";"+$.html(lid)+"***");
+    //console.log("LAYOUT id="+lid+";"+$.html(lid)+"***");
     this.opts=opts;
-    return this.id;
 }
 
 function _DS_Lay_AddChild(child, order) {
@@ -40,7 +48,7 @@ function _DS_Lay_AddChild(child, order) {
     if(!order || order > this.children.length) { order=this.children.length; }
     this.children.splice(order, 0, {id:child.id});
     if(this.opts) {
-	console.log(" OPTIONS: "+util.inspect(this.opts)+";id="+child.id);
+	//console.log(" OPTIONS: "+util.inspect(this.opts)+";id="+child.id);
 	var op=this.opts;
 	if(op.hAlign == 'center') {
 	}

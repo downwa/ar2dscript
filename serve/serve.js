@@ -1,3 +1,7 @@
+/* Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
+ * Licensed under the MIT License (MIT)
+ */
+
 var VERSION="2016.06.22.1";
 
 log("__________________________________________________________________________");
@@ -144,7 +148,7 @@ function getApp(name, session) {
 	//var app=JSON.parse(readFileFiber(appState));
 	//if(app && options.debug) { log(("STATE: "+appState+"="+JSON.stringify(app)).blue); } // console.dir
 	var app=_apps[name];
-	if(!app) { app=_apps[name]={name:name}; }
+	if(!app) { app=_apps[name]={name:name, path:appPath, VERSION:VERSION, sent:[], services:[], Fiber:Fiber}; }
 	return app;
     }
     catch(err) {
@@ -632,10 +636,11 @@ function dsgui(request) {
     log('CON '+request.origin+" for "+appName+"; session="+session+"; fiber="+Fiber.current);
     Fiber(function() { 
 	try { connApps[connection]=app; runApp(app, session, connection); }
-	catch(e) {
-	    log(("runApp("+appName+") ERROR: "+e.stack).red);
-	    app.connection.sendUTF(JSON.stringify({mid:0, fn:'alert', args:['Server Error: '+e.message]}));
-	}
+	catch(e) {}
+// 	for(var xa=0; xa<app.services.length; xa++) {
+// 	    try { runServiceReady(app, session, connection); }
+// 	    catch(e) {}
+// 	}
     }).run();
     //qFlush(a);
     
@@ -653,7 +658,6 @@ function handleWsMessage(message) {
 	var obj=null;
 	try { obj=JSON.parse(message.utf8Data); }
 	catch(e) { log("JSON Error: "+e+"; data="+message.utf8Data); return; }
-        log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
         handleCallback.call(this,obj);
     }
     else if (message.type === 'binary') {
@@ -671,7 +675,8 @@ function handleCallback(obj) {
 	log("DMP "+JSON.stringify(app.context._objects[obj.id]));
 	return;
     }
-    if(obj.mid == null) {
+    if(obj.mid === null) {
+        log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
 	var objId=obj.args[0];
 	var onTouch=app.context._objects[objId].onTouch;
 	Fiber(function() {
@@ -681,13 +686,22 @@ function handleCallback(obj) {
 	return;
     }
     else {
-	if(app.sent && obj.mid == app.sent.mid && app.sent.cb && app.sent.cb === 'N') {
-	    app.sent=null;
-	    Fiber(function() {
-		try { app.sent.cb(null, obj.arguments); }
-		catch(e) { log("handleCallback ERROR (obj="+JSON.stringify(obj)+"; "+e.stack); }
-	    }).run();
-	    return;
+	//log('sent='+util.inspect(app.sent)+';mid('+obj.mid+')==sent.mid('+app.sent.mid+')***');
+	for(var xa=0; xa<app.sent.length; xa++) {
+	    if(obj.mid === app.sent[xa].mid) {
+		var sent=app.sent[xa];
+		var fname=sent.fn;
+		var cb=sent.cb;
+		app.sent.splice(xa,1);
+		if(cb) {
+		    log('RCV ' + obj.mid + ' '+fname+'='+JSON.stringify(obj.args)); //message.utf8Data);
+		    Fiber(function() {
+			try { cb(null, obj.args); }
+			catch(e) { log("handleCallback ERROR (obj="+JSON.stringify(obj)+"; "+e.stack); }
+		    }).run();
+		}
+		return;
+	    }
 	}
     }
     log('Received Unknown Message: ' + JSON.stringify(obj));

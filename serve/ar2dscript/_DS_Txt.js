@@ -27,7 +27,7 @@ function _DS_Txt_SetTextSize(size,mode) {
 }
 
 function _DS_Txt_SetText(text) {
-    console.log("SetText: this.id="+this.id);
+    //console.log("SetText: this.id="+this.id);
     this.htmlObj.html(text);
     _rmtSet(this, this.htmlObj.html());
 }
