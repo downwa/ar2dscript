@@ -1,50 +1,9 @@
 #!/usr/bin/env nodejs
+/* Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
+ * Licensed under the MIT License (MIT)
+ */
 
-function loadScripts(appName, scriptNames, context, isSystem) {
-    var scrInfos=readScripts(appName, scriptNames, isSystem);
-    for(var xa=0; xa<scrInfos.length; xa++) {
-	var scrInfo=scrInfos[xa];
-	if(scrInfo.script === null) {
-	    throw new Error("Missing "+scrInfo.scriptName);
-	}
-//  	var script=new vm.Script(scrInfo.script, {filename:scrInfo.scriptName});
-//  	if(context) { script.runInContext(context); }
-//  	else { script.runInThisContext(); }
- 	if(context) { vm.runInContext(scrInfo.script, context, {filename:scrInfo.scriptName}); }
- 	else { 
-	    //console.log("runInThisContext: "+scrInfo.script+"***");
-	    vm.runInThisContext(scrInfo.script, {filename:scrInfo.scriptName}); }
-    }
-}
-
-function readScripts(appName, scriptNames, isSystem) { // Read scripts from .apk, .spk, or Apps folder
-    //log("readScripts: fiber="+Fiber.current);
-    var rets=[]; // Returns array of length equal to scriptNames length.
-    var apk=appName.endsWith(".apk") ? (appName[0] !== '/' ? fsp.join(options.apksDir, appName) : appName) : null;
-    var spk=appName.endsWith(".spk") ? fsp.join(options.appsDir, appName) : null;
-    if(apk || spk) {
-	aspk=apk ? apk : spk;
-	try {
-	    var scrs=readZipAsText(aspk, scriptNames);
-	    for(var xa=0; xa<scriptNames.length; xa++) {
-		rets.push({script:scrs[xa], scriptName: aspk+":"+scriptNames[xa]});
-	    }
-	}
-	catch(e) {
-	    log("Error locating "+aspk+": "+scriptName+"; "+e.stack);
-	}
-    }
-    else {
-	var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
-	for(var xa=0; xa<scriptNames.length; xa++) {
-	    var scriptName= scriptNames[xa];
-	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
-	    log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
-	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
-	}
-    }
-    return rets;
-}
+var _mid=0;
 
 var options={
     port:80,
@@ -90,7 +49,8 @@ if(fs.statSync(ds).isDirectory()) {
 }
 
 globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
-	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts']);
+	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
+	  'setTimeoutFiber','setIntervalFiber']);
 
 // global.log=log;
 // global.require=require;
@@ -185,6 +145,77 @@ function onWatchResult(err,watcherInstance,isWatching){
 //////////////////////////////////////// Utility Functions //////////////////////////////////////////
 /***************************************************************************************************/
 
+
+function loadScripts(appName, scriptNames, context, isSystem) {
+    var scrInfos=readScripts(appName, scriptNames, isSystem);
+    for(var xa=0; xa<scrInfos.length; xa++) {
+	var scrInfo=scrInfos[xa];
+	if(scrInfo.script === null) {
+	    throw new Error("Missing "+scrInfo.scriptName);
+	}
+ 	if(context) { vm.runInContext(scrInfo.script, context, {filename:scrInfo.scriptName}); }
+ 	else { vm.runInThisContext(scrInfo.script, {filename:scrInfo.scriptName}); }
+    }
+}
+
+function readScripts(appName, scriptNames, isSystem) { // Read scripts from .apk, .spk, or Apps folder
+    //log("readScripts: fiber="+Fiber.current);
+    var rets=[]; // Returns array of length equal to scriptNames length.
+    var apk=appName.endsWith(".apk") ? (appName[0] !== '/' ? fsp.join(options.apksDir, appName) : appName) : null;
+    var spk=appName.endsWith(".spk") ? fsp.join(options.appsDir, appName) : null;
+    if(apk || spk) {
+	aspk=apk ? apk : spk;
+	try {
+	    var scrs=readZipAsText(aspk, scriptNames);
+	    for(var xa=0; xa<scriptNames.length; xa++) {
+		rets.push({script:scrs[xa], scriptName: aspk+":"+scriptNames[xa]});
+	    }
+	}
+	catch(e) {
+	    log("Error locating "+aspk+": "+scriptName+"; "+e.stack);
+	}
+    }
+    else {
+	var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
+	for(var xa=0; xa<scriptNames.length; xa++) {
+	    var scriptName= scriptNames[xa];
+	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
+	    //log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
+	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
+	}
+    }
+    return rets;
+}
+
+function _send(fn, args, app, awaitReturn) {
+    var cb=null;
+    if(awaitReturn) {
+        var fiber=app.Fiber.current;
+        cb=function(err, args) { fiber.run({err:err, data:args[0]}); }
+    }
+    var msg={mid:_mid++, fn:fn, args:args, cb:cb};
+    if(app.connection) {
+	//log("SND "+msg.mid+" "+fn);
+	//console.log("MSG: "+util.inspect(msg));
+	if(app._sendq) {
+	    app.sent.push(app._sendq);
+	    app.connection.sendUTF(JSON.stringify(app._sendq));
+	    app._sendq=null;
+	}
+	app.sent.push(msg);
+	app.connection.sendUTF(JSON.stringify(msg)); 
+    }
+    else {
+	app._sendq=msg;
+	log("QUE "+msg.mid+" "+fn); 
+    }
+    if(awaitReturn) { 
+        var ret=app.Fiber.yield();
+        //console.log("RETURN FROM YIELD: "+JSON.stringify(ret)+"***");
+        if(ret.err) { throw err; }
+        return ret.data;
+    }
+}
 
 ///////////////////// LOGGING ////////////////////////////
 

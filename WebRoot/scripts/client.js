@@ -10,7 +10,7 @@ function main() {
 
     //var W3CWebSocket = require('websocket').w3cwebsocket;
     
-    var wsurl='ws://'+window.location.hostname+window.location.pathname;
+    var wsurl='ws://'+window.location.hostname+':'+window.location.port+window.location.pathname;
     var title=window.location.pathname.substr(1);
     var xa=title.lastIndexOf('/');
     if(xa > -1) { title=title.substr(xa+1); }
