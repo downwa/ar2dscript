@@ -1,1 +1,67 @@
-/sdcard/ar2dscript/run
+#!/bin/sh
+# Startup script for unix-like Operating Systems.  Need to create a Windows batch file too...
+
+# Module dependencies
+MODS="colors watchr path fs vm websocket process crypto fibers yauzl http path os cheerio"
+
+# Possible module paths, else we expect node_modules in current working directory.
+MPS="/usr/lib/node_modules /usr/local/lib/node_modules /usr/local/lib/node"
+# NOTE: Windows, try %appdata%\npm (C:\Users\[Username]\AppData\Roaming\npm)
+# NOTE: Also try using npm config get prefix (which returns /usr on Debian Jessie)
+
+for p in $MPS; do
+    [ -d "$p" ] && MODSPATH="$p" && break
+done
+
+uid=$(id -u)
+[ "$uid" != "0" ] && {
+	echo "Restarting as root..."
+	exec sudo "$0"
+}
+
+which bc >/dev/null || apt-get -y install bc
+
+NODE=$(which node 2>/dev/null || which nodejs 2>/dev/null)
+
+nodever=$($NODE --version 2>/dev/null | sed -e 's/v/((((/g' -e 's/\./)*100)+/g' | bc)
+[ "$nodever" = "" -o "$NODE" = "" ] && nodever=0
+if [ "$nodever" -le "1025" ]; then
+    which apt-get >/dev/null || {
+	echo "apt-get not supported.  Use another method to install nodejs, then try again."
+	exit 1
+    }
+    which curl >/dev/null || apt-get -y install curl
+    echo "Installing new nodejs (nodever=$nodever)"
+    curl -sL https://deb.nodesource.com/setup_4.x | bash -
+    apt-get install -y nodejs || {
+	    echo "Install failed.  Exiting."
+	    exit
+    }
+fi
+
+echo "Checking for modules to install..."
+if [ -d "$MODSPATH" ]; then
+	export NODE_PATH=$MODSPATH
+fi
+for mod in $MODS; do
+	[ ! -d "node_modules/$mod" -a ! -d "$NODE_PATH/$mod" ] && npm install "$mod"
+done
+
+# DS="/sdcard/backups/apps/DroidScript_1.15.apk"
+#DS="/sdcard/backups/apps/DroidScript_135a9.apk"
+DS="/sdcard/backups/apps/"
+
+# Examples for specifying DroidScript to use:
+#   Latest: DS="/sdcard/backups/apps/"
+#   Target: DS="/sdcard/backups/apps/DroidScript_1.15.apk" 
+
+export DS
+while [ true ]; do
+    echo "Starting ar2dscript server..."
+    "$NODE" ./serve/main.js || {
+	echo "Terminated with error code: $?"
+	sleep 30
+	grep -q '"debug":true' serve/config.json && { sleep 300; } || reboot # For deployed devices
+    } 
+    sleep 1
+done
