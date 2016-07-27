@@ -3,7 +3,6 @@
  */
 
 /** DroidScript App emulation **/
-
 //console.log(util.inspect(this));
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -43,22 +42,23 @@ function _DS_App_CreateService(packageName, classname, options, callback) {
 }
 
 function _DS_App_GetPackageName() {
-    return "com.iglooware.ar2dscript";
+    return "com.ar2dscript";
 }
 
 function _DS_App_GetRunningServices() {
-//     var fiber=_app.Fiber.current;
-//     //ps.lookup({command: 'node',psargs: 'ax'}, function(err, resultList ) {
-//     ps.lookup({psargs: 'axu'}, function(err, data ) { 
-// 	data.forEach(function( process ){
-// 	    if( process ){
-// 		console.log( 'USER: %s, PID: %s, COMMAND: %s, ARGUMENTS: %s', process.user, process.pid, process.command, process.arguments );
-// 	    }
-// 	});	
-// 	fiber.run({err:err, data:data}); });
-//     var ret=_app.Fiber.yield();
-//     if(ret.err) { throw ret.err; }
-//     return ret.data;
+	var ret=exec('ps aux');
+	if(ret.err) {
+		if(ret.err.error) { throw ret.err.error; }
+		if(ret.err.stderr != '') { throw new Error('ERROR: '+ret.err.stderr); }
+	}
+	var data=columnParser(ret.data);
+	ret=[];
+	for(var xa=0; xa<data.length; xa++) {
+		// USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+		var r=data[xa];
+		ret.push({user:r['USER'], pid:r['PID'], name:r['COMMAND'].split(' ')[0]});
+	}
+	return ret;
 }
 
 function SetOrientation(orient, callback) {

@@ -2,6 +2,7 @@
  * Licensed under the MIT License (MIT)
  */
 
+const columnParser = require('node-column-parser'); // columnParser() 
 const colorsafe=require('colors/safe');
 const cheerio = require('cheerio');
 const util = require('util');
@@ -21,7 +22,7 @@ function runApp(app, session, connection) {
 	}
 	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
 	    console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, cheerio:cheerio, //require:require,
-	    colors:colorsafe, os:os, fsp:fsp, cp:cp, ps:ps,
+	    colors:colorsafe, os:os, fsp:fsp, cp:cp, ps:ps, columnParser:columnParser, _exec:execFiber,
 	    setTimeout:setTimeoutFiber, setInterval:setIntervalFiber
 	};
 	app.context = new vm.createContext(sandbox);
@@ -52,7 +53,7 @@ function runApp(app, session, connection) {
 	throw e;
     }
     try {
-	//log("CALL OnStart()"); 
+	//log("CALL OnStart()");
 	vm.runInContext('OnStart()',app.context,{displayErrors:true});
     }
     catch(e) {

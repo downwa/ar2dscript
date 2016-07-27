@@ -14,12 +14,13 @@ var options={
     autoboots: []
 };
 
-var colors = require('colors');
-var watchr = require('watchr');
-var yauzl = require("yauzl"); // Unzip
-var fsp = require('path'); // path join
-var fs = require('fs'); // statSync, readdirSync, readFileSync, readdir, stat, readFile, writeFile, access, createWriteStream
-var vm = require('vm');
+const colors = require('colors');
+const watchr = require('watchr');
+const yauzl = require("yauzl"); // Unzip
+const exec = require('child_process').exec; // exec()
+const fsp = require('path'); // path join
+const fs = require('fs'); // statSync, readdirSync, readFileSync, readdir, stat, readFile, writeFile, access, createWriteStream
+const vm = require('vm');
 
 var Fiber = require('fibers'); // Threading
 // Fiber(function() { accessFiber("/sdcard/DroidScript/getIP/Img/getIP.png", fs.R_OK); }).run();
@@ -50,7 +51,7 @@ if(fs.statSync(ds).isDirectory()) {
 
 globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
 	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
-	  'setTimeoutFiber','setIntervalFiber']);
+	  'setTimeoutFiber','setIntervalFiber','execFiber']);
 
 // global.log=log;
 // global.require=require;
@@ -269,6 +270,14 @@ function setTimeoutFiber(cb, ms) {
 
 function setIntervalFiber(cb, ms) {
     setInterval(function() { Fiber(cb).run(); }, ms);
+}
+
+function execFiber(cmd, app) {
+	var fiber=app.Fiber.current;
+	exec(cmd, (error, stdout, stderr) => {
+		fiber.run({err:{error:error, stderr:stderr}, data:stdout});
+	});
+	return app.Fiber.yield();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

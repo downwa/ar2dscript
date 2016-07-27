@@ -19,12 +19,14 @@ function _DS_Svc(packageName, classname, options, callback) {
     const sProc = cp.fork('serve/runservice.js');
 
     sProc.on('message', (msg) => {
-	//console.log('PARENT got message:', msg);
-	if(msg._serviceReady) { this.onServiceReady(); }
-	else if(msg._serviceLog) {
-	    process.stdout.write(colors.gray(msg._serviceLog));
-	}
-	else { this.onMessage(msg); }
+		_app.Fiber(function() { // Callbacks need a new fiber
+			//console.log('PARENT got message:', msg);
+			if(msg._serviceReady) { this.onServiceReady(); }
+			else if(msg._serviceLog) {
+				process.stdout.write(colors.gray(msg._serviceLog));
+			}
+			else { this.onMessage(msg); }
+		}.bind(this)).run();
     });
 
     sProc.send({start: sName});

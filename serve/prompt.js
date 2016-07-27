@@ -12,9 +12,12 @@ var navigator={
 };
 
 function prompt(promptMsg, dftVal) {
-    var h1=promptMsg[0] == '#';
-    var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
-    if(h1 || (h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))) { // e.g. App.CreateLayout(
+	var h1=promptMsg[0] == '#';
+	var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
+	if(!h1 && !(h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))) { // e.g. App.CreateLayout(
+		//console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
+		return _prompt(promptMsg, dftVal); 	
+    }
 	var id=promptMsg[0]=='#' ? promptMsg.substr(1) : promptMsg;
 	if(id == '') { id=1; }
 	var args=dftVal.split('\f');
@@ -48,14 +51,15 @@ function prompt(promptMsg, dftVal) {
 	var ret=f.apply(obj, args); // Passes new object to called function
 	if(ret) {
 	    var r=(typeof ret === 'number') ? '#'+ret : JSON.stringify(ret);
+		const maxLen=80;
+		if(r.length > maxLen) { r=r.substr(0,maxLen)+"..."; }
 	    log(colors.blue("-> "+r)); 
 	}
 	return ret;
-    }
-    else { 
-	//console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
-	return _prompt(promptMsg, dftVal); 	
-    }
+}
+
+function exec(cmd) {
+	return _exec(cmd, _app);
 }
 
 function alert(msg) {

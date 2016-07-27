@@ -7,6 +7,9 @@
 //     process.exit(1);
 // }
 
+process.title='com.ar2dscript:droidscript_service';
+console.log(process.title);
+
 if(process.send) {
     process.stdout.write = process.stderr.write = function(data) {
 	process.send({_serviceLog:data});
@@ -30,24 +33,53 @@ setInterval(() => {
     console.log("SERVICE still alive at "+new Date());
 },10000);
 
-var ps = require('ps-node');
- 
-// A simple pid lookup 
-//ps.lookup({command: 'node',psargs: 'ax'}, function(err, resultList ) {
-ps.lookup({psargs: 'axu'}, function(err, resultList ) {
-    if (err) {
-        throw new Error( err );
-    }
- 
-    resultList.forEach(function( process ){
-        if( process ){
-	    console.log("proc="+JSON.stringify(process));
-            //console.log( 'USER: %s, PID: %s, COMMAND: %s, ARGUMENTS: %s', process.user, process.pid, process.command, process.arguments );
-        }
-    });
-});
+//var columnParser = require('node-column-parser');
+//const exec = require('child_process').exec;
+//exec('ps aux', (error, stdout, stderr) => {
+//  if (error) {
+//    console.error(`exec error: ${error}`);
+//    return;
+//  }
+//  console.log(columnParser(stdout));
+//  //console.log(`stdout: ${stdout}`);
+//  console.log(`stderr: ${stderr}`);
+//});
+
+//var child = require('child_process');
+// 
+//var ps = child.spawn('ps axu');
+//var shellOutput = '';
+// 
+//ps.stdout.on('data', function (chunk) {
+//  shellOutput += chunk;
+//});
+// 
+//ps.stdout.on('end', function () {
+//  console.log(shellParser(shellOutput))
+//});
+
+//var ps = require('ps-node');
+// 
+//// A simple pid lookup 
+////ps.lookup({command: 'node',psargs: 'ax'}, function(err, resultList ) {
+//ps.lookup({psargs: 'axu'}, function(err, resultList ) {
+//    if (err) {
+//        throw new Error( err );
+//    }
+// 
+//    resultList.forEach(function( process ){
+//        if( process ){
+//	    console.log("proc="+JSON.stringify(process));
+//            //console.log( 'USER: %s, PID: %s, COMMAND: %s, ARGUMENTS: %s', process.user, process.pid, process.command, process.arguments );
+//        }
+//    });
+//});
 
 /** ps axu output
+ * Columns 1,2,11
+ * MacOS:
+
+USER              PID  %CPU %MEM      VSZ    RSS   TT  STAT STARTED      TIME COMMAND
  * Android:
  * 
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
