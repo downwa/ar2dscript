@@ -16,7 +16,7 @@ function _DS_Svc(packageName, classname, options, callback) {
     
 
     var sName=getServicePath();
-    const sProc = cp.fork('serve/runservice.js');
+    const sProc = cp.fork('serve/com.iglooware.ar2dscript.runservice.js');
 
     sProc.on('message', (msg) => {
 		_app.Fiber(function() { // Callbacks need a new fiber

@@ -42,7 +42,7 @@ function _DS_App_CreateService(packageName, classname, options, callback) {
 }
 
 function _DS_App_GetPackageName() {
-    return "com.ar2dscript";
+    return "com.iglooware.ar2dscript";
 }
 
 function _DS_App_GetRunningServices() {
