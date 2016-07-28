@@ -1,7 +1,8 @@
-#!/usr/bin/env nodejs
+//#!/usr/bin/env nodejs
 /* Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
  * Licensed under the MIT License (MIT)
  */
+const VERSION="2016.07.27.1";
 
 var _mid=0;
 
@@ -14,7 +15,8 @@ var options={
     autoboots: []
 };
 
-const colors = require('colors');
+const colorsafe=require('colors/safe');
+const cheerio = require('cheerio');
 const watchr = require('watchr');
 const yauzl = require("yauzl"); // Unzip
 const exec = require('child_process').exec; // exec()
@@ -25,77 +27,95 @@ const vm = require('vm');
 var Fiber = require('fibers'); // Threading
 // Fiber(function() { accessFiber("/sdcard/DroidScript/getIP/Img/getIP.png", fs.R_OK); }).run();
 
+if (typeof inService !== 'undefined' && inService !== null && inService) {
+    // variable is undefined or null
+	console.log("RUNNING SERVICE FROM MAIN: inService="+inService);
+	serviceScript=inService;
+}
+else {
+	console.log("RUNNING MAIN START");
+	serviceScript="serve.js";
+	inService=false;
+}
+
+function asService() {
+	console.log("AS SERVICE");
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** INITIALIZATION ****************************************/
 ////////////////////////////////////////////////////////////////////////////////////////////////
-loadConfig();
-
-log("Watching for changes...");
-watchr.watch({paths: ['serve', 'resources'],
-    listeners: {error: onWatchResult, watching: onWatchResult, change: onFileChanged, next: onWatchResult}});
-
 var ds=process.env.DS;
 if(!ds) { ds=process.cwd(); }
 
 log("Main: DS="+ds);
 
+loadConfig();
+
 if(fs.statSync(ds).isDirectory()) {
-    var apks=fs.readdirSync(ds, null, true).filter( function(file) {
+	var apks=fs.readdirSync(ds, null, true).filter( function(file) {
 	return file.indexOf("DroidScript_") == 0 && file.endsWith(".apk");
-    }); // Sorted, finds latest version of apk (if any)
-    var apk=(apks.length > 0) ? apks[apks.length-1] : null;
-    if(!apk) { throw Error("Missing DroidScript_*.apk in "+ds); }
-    ds=fsp.join(ds,apk);
-    log("Using DS="+ds);
+	}); // Sorted, finds latest version of apk (if any)
+	var apk=(apks.length > 0) ? apks[apks.length-1] : null;
+	if(!apk) { throw Error("Missing DroidScript_*.apk in "+ds); }
+	ds=fsp.join(ds,apk);
+	log("Using DS="+ds);
 }
 
-globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
-	  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
-	  'setTimeoutFiber','setIntervalFiber','execFiber']);
+if (!inService) {
+	log("Watching for changes...");
+	watchr.watch({paths: ['serve', 'resources'],
+		listeners: {error: onWatchResult, watching: onWatchResult, change: onFileChanged, next: onWatchResult}});
+	
+	globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
+		  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
+		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','cheerio']);
 
-// global.log=log;
-// global.require=require;
-// global.options=options;
-// global.parseCookies=parseCookies;
-// global.sendCookies=sendCookies;
-// global.statFiber=statFiber;
-// global.accessFiber=accessFiber;
-// global.readFileFiber=readFileFiber;
-// global.readdirFiber=readdirFiber;
-// global.__dirname=__dirname;
-// global.loadScripts=loadScripts;
-
-
-// 	var sandbox={console:console, process:process, navigator:{_VERSION: 42,userAgent: "test"}, prompt:function() {
-// 	        console.log("APPTEST5");
-// 	        console.log("APPTEST5: a="+a);
-// 	}, a:42};
-// 	var ctx = new vm.createContext(sandbox);
-// 	//loadScripts(".", ["test.js"], ctx, true);
-// 	//loadScripts(".", ["apptest.js"], ctx, true);
-// 	
-//  	vm.runInContext("console.log('TEST'); console.log('TEST: a='+a);prompt();", ctx, {filename:"TEST"});
-// 
-// 
-
-loadScripts(".", ["serve.js"], null, true);
-
-//loadScripts(ds, ["assets/app.js"]);
-
-/*var WebSocketServer = require('websocket').server;
-var serialize = require('node-serialize');
-var process = require('process');
-var crypto = require('crypto');
-*/
-/*var Fiber = require('fibers');
-var yauzl = require("yauzl");
-var http = require('http');
-var path = require("path");
-var util = require("util");
-var os = require('os');
-*/
-
-
+	loadScripts(".", [serviceScript], null, true);
+}
+else { // inService
+	console.log("inService="+inService);
+	
+	const columnParser = require('node-column-parser'); // columnParser() 
+	const util = require('util');
+	const cp = require('child_process');
+	//const fsp = require('path'); // path join
+	//const fs = require('fs'); // createReadStream
+	//const os = require('os'); // tmpdir
+	//const os = require('os'); // tmpdir
+//
+	var app={VERSION:VERSION};
+	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
+	    console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, cheerio:cheerio, //require:require,
+	    colorsafe:colorsafe, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION,
+	    setTimeout:setTimeoutFiber, setInterval:setIntervalFiber
+	};
+	app.context = new vm.createContext(sandbox);
+//
+    try { loadScripts(".", ['./prompt.js'], app.context, true); }
+    catch(e) {
+		log(colorsafe.red("runSrv#2("+serviceScript+") ERROR: "+e.stack));
+		throw e;
+    }
+    try { loadScripts(ds, ["assets/app.js"], app.context, false); }
+    catch(e) {
+		log(colorsafe.red("runSrv#3("+serviceScript+") ERROR: "+e.stack));
+		throw e;
+    }
+    try { loadScripts(".", [serviceScript], app.context, true); }
+    catch(e) {
+		log(colorsafe.red("runSrv#4("+serviceScript+") ERROR: "+e.stack));
+		throw e;
+    }
+    try {
+	//log("CALL OnStart()");
+		vm.runInContext('OnStart()',app.context,{displayErrors:true});
+    }
+    catch(e) {
+		log(colorsafe.red("runSrv#5("+serviceScript+") ERROR: "+e.stack));
+		throw e;
+    }
+//	//OnStart(); // Start Service
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** IMPLEMENTATION ****************************************/
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,7 +132,7 @@ function loadConfig() {
 	options=JSON.parse(fs.readFileSync('serve/config.json'));
 	if(!options.appsDir) options.appsDir=fsp.join(options.sdcard, "DroidScript");
 	if(!options.apksDir) options.apksDir=fsp.join(options.appsDir,"APKs");	
-	if(options && options.debug) { log("CONFIG: "+JSON.stringify(options).green); } // console.dir
+	if(options && options.debug) { log("CONFIG: "+colorsafe.green(JSON.stringify(options))); } // console.dir
     }
     catch(err) {
 	if(err.code !== 'ENOENT') {
@@ -148,6 +168,7 @@ function onWatchResult(err,watcherInstance,isWatching){
 
 
 function loadScripts(appName, scriptNames, context, isSystem) {
+	console.log("appName="+appName+";scriptNames="+scriptNames);
     var scrInfos=readScripts(appName, scriptNames, isSystem);
     for(var xa=0; xa<scrInfos.length; xa++) {
 	var scrInfo=scrInfos[xa];
@@ -177,13 +198,16 @@ function readScripts(appName, scriptNames, isSystem) { // Read scripts from .apk
 	}
     }
     else {
-	var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
-	for(var xa=0; xa<scriptNames.length; xa++) {
-	    var scriptName= scriptNames[xa];
-	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
-	    //log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
-	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
-	}
+		var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
+		console.log("isSystem="+isSystem+";cwd="+process.cwd()+";appsDir="+options.appsDir+";appName="+appName+"***");
+		for(var xa=0; xa<scriptNames.length; xa++) {
+		    var scriptName= scriptNames[xa];
+			// /sdcard/DroidScript/sdcard/backups/apps/assets/app.js
+			console.log("scriptName="+scriptName+";sep="+fsp.sep+";dir="+dir+"***");
+		    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
+		    //log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
+		    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
+		}
     }
     return rets;
 }
@@ -230,7 +254,7 @@ function log(msg,debugLevel,showStack) {
 	msg += +' (In '+src+')';
     }
     var d = dateToYMDHMS(new Date());
-    console.log(d.inverse+' '+msg);
+    console.log(colorsafe.inverse(d)+' '+msg);
 }
 
 function dateToYMD(date) {

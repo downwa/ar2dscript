@@ -23,7 +23,7 @@ function _DS_Svc(packageName, classname, options, callback) {
 			//console.log('PARENT got message:', msg);
 			if(msg._serviceReady) { this.onServiceReady(); }
 			else if(msg._serviceLog) {
-				process.stdout.write(colors.gray(msg._serviceLog));
+				process.stdout.write(colorsafe.gray(msg._serviceLog));
 			}
 			else { this.onMessage(msg); }
 		}.bind(this)).run();

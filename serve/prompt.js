@@ -7,8 +7,8 @@ _objects[1]={id:1, cls:'App', layouts:[]} // Application object
 var _nextObjId_=2; // Must start at >0
 
 var navigator={
-    _VERSION: _app.VERSION,
-    userAgent: "Android Emulation for Linux"
+    _VERSION:_VERSION,
+    userAgent:"Android Emulation for Linux"
 };
 
 function prompt(promptMsg, dftVal) {
@@ -47,13 +47,13 @@ function prompt(promptMsg, dftVal) {
 	var f=eval(fn);
 	var obj=_objects[id];
 	if(!obj) { obj={cls:clsBase,id:id}; }
-	if(ofn != "_Init") { log(colors.blue(ofn+" "+JSON.stringify(args))); }
+	if(ofn != "_Init") { log(colorsafe.blue(ofn+" "+JSON.stringify(args))); }
 	var ret=f.apply(obj, args); // Passes new object to called function
 	if(ret) {
 	    var r=(typeof ret === 'number') ? '#'+ret : JSON.stringify(ret);
 		const maxLen=80;
 		if(r.length > maxLen) { r=r.substr(0,maxLen)+"..."; }
-	    log(colors.blue("-> "+r)); 
+	    log(colorsafe.blue("-> "+r)); 
 	}
 	return ret;
 }
@@ -73,7 +73,8 @@ function _prompt(promptMsg, dftVal) {
 function _load(cls, context) {
     if(!context) { context=_app.context; }
     if(eval("typeof "+cls) === 'undefined') {
-	loadScripts(".", ['./ar2dscript/'+cls+'.js'], context, true);
+		console.log("cls="+cls+";context="+context);
+		loadScripts(".", ['./ar2dscript/'+cls+'.js'], context, true);
     }
 }
 

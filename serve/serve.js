@@ -2,8 +2,6 @@
  * Licensed under the MIT License (MIT)
  */
 
-var VERSION="2016.06.22.1";
-
 log("__________________________________________________________________________");
 log("ar2dscript starting...");
 
@@ -468,7 +466,7 @@ function listAppsApks(listApps, listApks) {
 function httpHandler(request, response) {
     Fiber(function() {
 	try {
-	    log(("cookie: "+request.headers.cookie).green);
+	    log(colorsafe.green("cookie: "+request.headers.cookie));
 	    var cookies = parseCookies(request.headers.cookie);
 	    log('REQ ' + request.url); //+"; cookies="+JSON.stringify(cookies));
 	    var url=decodeURI(request.url);
@@ -535,7 +533,7 @@ function httpHandler(request, response) {
 	    catch(e) {
 		respond(5,response, cookies, 404, null, null,"<html><head><title>Not Found</title></head><body>"+
 		    "<h1>Not Found: "+filePath+"</h1></body></html>");
-		log(('ERR Not found: '+filePath+"; e="+e).red);
+		log(colorsafe.red('ERR Not found: '+filePath+"; e="+e));
 		return;
 	    }
 	    var stat = statFiber(filePath);
@@ -547,7 +545,7 @@ function httpHandler(request, response) {
 	catch(e) {
 	    respond(5,response, cookies, 500, null, null,"<html><head><title>Server Error</title></head><body>"+
 		"<h1>Server Error: "+filePath+"</h1></body></html>");
-	    log(('ERR CRASH '+filePath+"; e="+e.stack).red);
+	    log(colorsafe.red('ERR CRASH '+filePath+"; e="+e.stack));
 	    return;
 	}
     }).run();

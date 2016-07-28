@@ -7,6 +7,11 @@
 //     process.exit(1);
 // }
 
+const Fiber = require('fibers'); // Threading
+const fs=require('fs');
+const os=require('os');
+const vm=require('vm');
+
 console.log('was='+process.title);
 process.title='com.iglooware.ar2dscript:droidscript_service';
 console.log('title='+process.title);
@@ -25,7 +30,19 @@ console.log("RUNNING SERVICE");
 
 process.on('message', (msg) => {
     console.log('CHILD got message:', msg);
-    console.log('start='+msg.start);
+	if (msg.start != '') {
+		console.log('start='+msg.start);
+		var scr=fs.readFileSync("serve/main.js", {encoding:"utf-8"});
+		var sandbox={require:require, console:console, inService:msg.start,
+			process:process, fs:fs, vm:vm, os:os
+		};
+	
+		var context = new vm.createContext(sandbox);
+		Fiber(function() {
+			vm.runInContext(scr, context, {filename:"serve/main.js"});
+		}).run();
+		
+	}
 });
 
 if(process.send) { process.send({_serviceReady: true}); }
