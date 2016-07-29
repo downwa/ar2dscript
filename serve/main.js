@@ -15,32 +15,21 @@ var options={
     autoboots: []
 };
 
+const columnParser = require('node-column-parser'); // columnParser() 
 const colorsafe=require('colors/safe');
 const cheerio = require('cheerio');
 const watchr = require('watchr');
 const yauzl = require("yauzl"); // Unzip
 const exec = require('child_process').exec; // exec()
+const util = require('util');
 const fsp = require('path'); // path join
 const fs = require('fs'); // statSync, readdirSync, readFileSync, readdir, stat, readFile, writeFile, access, createWriteStream
 const vm = require('vm');
+const cp = require('child_process');
 
 var Fiber = require('fibers'); // Threading
 // Fiber(function() { accessFiber("/sdcard/DroidScript/getIP/Img/getIP.png", fs.R_OK); }).run();
 
-if (typeof inService !== 'undefined' && inService !== null && inService) {
-    // variable is undefined or null
-	console.log("RUNNING SERVICE FROM MAIN: inService="+inService);
-	serviceScript=inService;
-}
-else {
-	console.log("RUNNING MAIN START");
-	serviceScript="serve.js";
-	inService=false;
-}
-
-function asService() {
-	console.log("AS SERVICE");
-}
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** INITIALIZATION ****************************************/
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,60 +50,44 @@ if(fs.statSync(ds).isDirectory()) {
 	log("Using DS="+ds);
 }
 
-if (!inService) {
+if (typeof inService !== 'undefined' && inService !== null && inService) {
+	initService(inService);
+}
+else { inService=false; initServer(); }
+
+function initService(sName) {
+	var app={name:fsp.basename(fsp.dirname(sName)), path:sName, VERSION:VERSION,
+		isService:true, alarms:[], sent:[], services:[], Fiber:Fiber};
+	try { initApp(app, ".", sName); }
+	catch(e) {
+		log(colorsafe.red("ERROR: initApp("+sName+"): "+e.message));
+		throw e;
+	}
+}
+
+function initApp(app, sDir, sName) {
+	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
+		console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, cheerio:cheerio, //require:require,
+		colorsafe:colorsafe, os:os, cp:cp, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION,
+		setTimeout:setTimeout, setInterval:setInterval
+	};
+	app.context = new vm.createContext(sandbox);
+	loadScripts(".", ['./prompt.js'], app.context, true);
+	loadScripts(ds, ["assets/app.js"], app.context, false);
+	loadScripts(sDir, [sName], app.context, false);
+	vm.runInContext('OnStart()',app.context,{displayErrors:true});
+}
+
+function initServer() {
 	log("Watching for changes...");
 	watchr.watch({paths: ['serve', 'resources'],
 		listeners: {error: onWatchResult, watching: onWatchResult, change: onFileChanged, next: onWatchResult}});
 	
 	globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
 		  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
-		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','cheerio']);
+		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','cheerio','initApp']);
 
-	loadScripts(".", [serviceScript], null, true);
-}
-else { // inService
-	console.log("inService="+inService);
-	
-	const columnParser = require('node-column-parser'); // columnParser() 
-	const util = require('util');
-	const cp = require('child_process');
-	//const fsp = require('path'); // path join
-	//const fs = require('fs'); // createReadStream
-	//const os = require('os'); // tmpdir
-	//const os = require('os'); // tmpdir
-//
-	var app={VERSION:VERSION};
-	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
-	    console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, cheerio:cheerio, //require:require,
-	    colorsafe:colorsafe, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION,
-	    setTimeout:setTimeoutFiber, setInterval:setIntervalFiber
-	};
-	app.context = new vm.createContext(sandbox);
-//
-    try { loadScripts(".", ['./prompt.js'], app.context, true); }
-    catch(e) {
-		log(colorsafe.red("runSrv#2("+serviceScript+") ERROR: "+e.stack));
-		throw e;
-    }
-    try { loadScripts(ds, ["assets/app.js"], app.context, false); }
-    catch(e) {
-		log(colorsafe.red("runSrv#3("+serviceScript+") ERROR: "+e.stack));
-		throw e;
-    }
-    try { loadScripts(".", [serviceScript], app.context, true); }
-    catch(e) {
-		log(colorsafe.red("runSrv#4("+serviceScript+") ERROR: "+e.stack));
-		throw e;
-    }
-    try {
-	//log("CALL OnStart()");
-		vm.runInContext('OnStart()',app.context,{displayErrors:true});
-    }
-    catch(e) {
-		log(colorsafe.red("runSrv#5("+serviceScript+") ERROR: "+e.stack));
-		throw e;
-    }
-//	//OnStart(); // Start Service
+	loadScripts(".", ["serve.js"], null, true);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** IMPLEMENTATION ****************************************/

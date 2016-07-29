@@ -61,6 +61,44 @@ function _DS_App_GetRunningServices() {
 	return ret;
 }
 
+function _DS_App_SendMessage(msg) {
+	if(process.send) { process.send({msg: msg}); }
+}
+
+function _DS_App_SetAlarm(type,id,callback,time,interval) {
+	// type=Set,Repeat,Cancel
+	// id=number
+	// callback when alarm fires
+	// time when alarm should fire
+	// interval milliseconds betweeen repeat (if type is Repeat)
+	type=type.toLowerCase();
+	switch(type) {
+		case "set": {
+			var alarm={alarm:setTimeout(callback, time-(new Date())), type:type, id:id, time:time};
+			_app.alarms[id]=alarm;
+			break;
+		}
+		case "repeat": {
+			var alarm={alarm:setInterval(callback, time-(new Date())), type:type, id:id, time:time};
+			_app.alarms[id]=alarm;
+			break;
+		}
+		case "cancel": {
+			var alarm=_app.alarms.splice(id,1);
+			switch(alarm.type) {
+				case "set":    { clearTimeout(alarm.alarm); break; }
+				case "repeat": { clearInterval(alarm.alarm); break; }
+			}
+		}
+	}
+}
+
+function _DS_App_CreateDialog(title, options) {
+	_load("_DS_Dlg");
+	return new _DS_Dlg(title, options).id;
+}
+
+////////////
 function SetOrientation(orient, callback) {
     // orient = Portrait, Landscape, or Default
     __rmt(function(orient, callback) {

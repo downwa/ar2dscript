@@ -18,12 +18,12 @@ function _DS_Txt(text,width,height,options) {
     h.css('color',this.textColor);
     h.html(text);
     this.htmlObj=h;
-    return this.id;
 }
 
 function _DS_Txt_SetTextSize(size,mode) {
     if(parseInt(size) == size) { size += 'pt'; }
     this.htmlObj.css('font-size',this.size=size);
+    _rmtSet(this, this.htmlObj.html());
 }
 
 function _DS_Txt_SetText(text) {

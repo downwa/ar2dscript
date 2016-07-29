@@ -25,7 +25,7 @@ function _DS_Svc(packageName, classname, options, callback) {
 			else if(msg._serviceLog) {
 				process.stdout.write(colorsafe.gray(msg._serviceLog));
 			}
-			else { this.onMessage(msg); }
+			else { this.onMessage(msg.msg); }
 		}.bind(this)).run();
     });
 
