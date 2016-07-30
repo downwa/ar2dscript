@@ -57,7 +57,7 @@ else { inService=false; initServer(); }
 
 function initService(sName) {
 	var app={name:fsp.basename(fsp.dirname(sName)), path:sName, VERSION:VERSION,
-		isService:true, alarms:[], sent:[], services:[], Fiber:Fiber};
+		inService:inService, alarms:[], sent:[], services:[], Fiber:Fiber};
 	try { initApp(app, ".", sName); }
 	catch(e) {
 		log(colorsafe.red("ERROR: initApp("+sName+"): "+e.message));
@@ -192,20 +192,26 @@ function _send(fn, args, app, awaitReturn) {
         cb=function(err, args) { fiber.run({err:err, data:args[0]}); }
     }
     var msg={mid:_mid++, fn:fn, args:args, cb:cb};
-    if(app.connection) {
-	//log("SND "+msg.mid+" "+fn);
-	//console.log("MSG: "+util.inspect(msg));
-	if(app._sendq) {
-	    app.sent.push(app._sendq);
-	    app.connection.sendUTF(JSON.stringify(app._sendq));
-	    app._sendq=null;
-	}
-	app.sent.push(msg);
-	app.connection.sendUTF(JSON.stringify(msg)); 
+    if(app.connection || (inService && process.send)) {
+		//log("SND "+msg.mid+" "+fn);
+		//console.log("MSG: "+util.inspect(msg));
+		if(app._sendq) {
+			app.sent.push(app._sendq);
+			app.connection.sendUTF(JSON.stringify(app._sendq));
+			app._sendq=null;
+		}
+		if (app.connection) {
+			app.connection.sendUTF(JSON.stringify(msg));
+		}
+		else if(inService && process.send) {
+			process.send({msg: {_serviceForward: msg}});
+		}
+		app.sent.push(msg);
+		 
     }
     else {
-	app._sendq=msg;
-	log("QUE "+msg.mid+" "+fn); 
+		app._sendq=msg;
+		log("QUE "+msg.mid+" "+fn); 
     }
     if(awaitReturn) { 
         var ret=app.Fiber.yield();

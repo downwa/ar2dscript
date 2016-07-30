@@ -11,11 +11,9 @@ function _DS_Txt(text,width,height,options) {
     this.width=width;
     this.height=height;
     this.options=options;
-    this.backColor='#000000';
-    this.textColor='#808080'; 
     var h=_createNode('DIV', _newId(this))
-    h.css('background',this.backColor);
-    h.css('color',this.textColor);
+    h.css('background',this.backColor='#000000');
+    h.css('color',this.textColor='#808080');
     h.html(text);
     this.htmlObj=h;
 }
@@ -29,5 +27,10 @@ function _DS_Txt_SetTextSize(size,mode) {
 function _DS_Txt_SetText(text) {
     //console.log("SetText: this.id="+this.id);
     this.htmlObj.html(text);
+    _rmtSet(this, this.htmlObj.html());
+}
+
+function _DS_Txt_SetTextColor(color) {
+    this.htmlObj.css('color',this.textColor=color);
     _rmtSet(this, this.htmlObj.html());
 }

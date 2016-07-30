@@ -4,21 +4,28 @@
 
 /** DroidScript Obj emulation **/
 
-module.exports = (_app) => {
-    global._app=_app;
-    var _remote=require('./_rmt.js')(_app);
-    global.__rmt = _remote.__rmt;
-    global.__ret = _remote.__ret;
-    global._obj = _remote._obj;
-    return {
-//////////////////////////////////////////////////////////
-	SetSize: SetSize
-//////////////////////////////////////////////////////////
-    };
-};
-
 /////////////////////////////////////////////////////////////////////////////////
 
+function _DS_Obj() {
+	this.title=title;
+	this.options=options;
+	this.timer=null;
+	
+	this.backColor='#000000';
+	this.textColor='#808080'; 
+	var h=_createNode('DIV', _newId(this))
+	h.css('background',this.backColor);
+	h.css('color',this.textColor);
+	this.htmlObj=h;
+}
+
+function _DS_Obj_SetPadding(left,top,right,bottom,mode) {
+	this.htmlObj.css('padding-left',  this.paddingLeft=left);
+	this.htmlObj.css('padding-top',   this.paddingTop=top);
+	this.htmlObj.css('padding-right', this.paddingRight=right);
+	this.htmlObj.css('padding-bottom',this.paddingBottom=bottom);
+	_rmtSet(this, this.htmlObj.html());
+}
 function SetSize(width, height) {
     var obj=global._obj(module, arguments);
     console.log("SetSize: "+JSON.stringify(obj));

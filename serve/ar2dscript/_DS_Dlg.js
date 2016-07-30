@@ -22,13 +22,15 @@ function _DS_Dlg(title, options) {
 	this.title=title;
 	this.options=options;
 	this.timer=null;
+	this.layouts=[];
 	
 	this.backColor='#000000';
 	this.textColor='#808080'; 
 	var h=_createNode('DIV', _newId(this))
 	h.css('background',this.backColor);
 	h.css('color',this.textColor);
-	h.html(text);
+	if(title) { h.html("<h1>"+title+"</h1>"); }
+	$('#headhide').append(h); // Not in body, hide in head
 	this.htmlObj=h;
 }
 
@@ -47,14 +49,27 @@ function _DS_Dlg_SetPosition(left, top, width, height) {
 	if(height && height>=0) { this.htmlObj.css('height', (this.height=height)+'vh'); }
 }
 
-function _DS_Dlg_AddLayout( lay ) {
+function _DS_Dlg_AddLayout(layout) {
+	layout=_objects[layout];
+	//console.log("AddLayout: this.id="+this.id+";layout.id="+layout.id);
+	layout.parent={id:this.id};
+	this.layouts.push({id:layout.id});
+	var body=$('body');
+	var lid='#'+layout.htmlObj.attr('id');
+	body.append($(lid))
+	//console.log("AddLayout htm="+$.html(lid));
+	_rmtAdd({htmlObj:body}, $.html(lid));
 }
 
 function _DS_Dlg_Show() {
+	this.htmlObj.append(this.htmlObj);
+	var lid='#'+this.htmlObj.attr('id');
+	_rmtAdd(this, $.html(lid));
 }
 
 function _DS_Dlg_Hide() {
-	
+	$('#headhide').append(this.htmlObj); // Remove from body, hide in head
+	_rmtDel(this);
 }
 
 

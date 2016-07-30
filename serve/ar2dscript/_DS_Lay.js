@@ -73,8 +73,8 @@ function _DS_Lay_RemoveChild(child) {
     child.parent={};
     var idx=-1;
     for(var xa=0; xa<this.children.length; xa++) {
-	// , {id:child.id}
-	if(this.children[xa].id === child.id) { idx=xa; break; }
+		// , {id:child.id}
+		if(this.children[xa].id === child.id) { idx=xa; break; }
     }
     this.children.splice(idx, 1);
     $('#headhide').append(child.htmlObj); // Remove from body, hide in head

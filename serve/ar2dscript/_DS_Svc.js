@@ -25,6 +25,10 @@ function _DS_Svc(packageName, classname, options, callback) {
 			else if(msg._serviceLog) {
 				process.stdout.write(colorsafe.gray(msg._serviceLog));
 			}
+			else if (msg.msg && msg.msg._serviceForward) {
+				var s=msg.msg._serviceForward;
+				_send(s.fn, s.args, _app);
+			}
 			else { this.onMessage(msg.msg); }
 		}.bind(this)).run();
     });
