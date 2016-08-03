@@ -14,7 +14,12 @@ var navigator={
 function prompt(promptMsg, dftVal) {
 	var h1=promptMsg[0] == '#';
 	var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
-	if(!h1 && !(h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))) { // e.g. App.CreateLayout(
+	var actualPrompt=(!h1 && !(h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/)));
+	if(inService && (actualPrompt || !runLocal(dftVal))) {
+		if(process.send) { return rmtPrompt(promptMsg, dftVal); }
+		else { throw new Error("Disconnected service"); }
+	}
+	if(actualPrompt) { // e.g. App.CreateLayout(
 		//console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
 		return _prompt(promptMsg, dftVal); 	
     }
@@ -40,7 +45,8 @@ function prompt(promptMsg, dftVal) {
 	_load(cls);
 	for(xa=0; xa<args.length; xa++) {
 	    if(typeof args[xa] === 'string') {
-		if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
+			if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
+			if(args[xa] === "false" || args[xa] === "true") { args[xa]=eval(args[xa]); }
 	    }
 	}
 	fn=cls+"_"+fn;
@@ -58,6 +64,28 @@ function prompt(promptMsg, dftVal) {
 	return ret;
 }
 
+function rmtPrompt(promptMsg, dftVal) {
+	if (!_app.Fiber.current) {
+		throw new Error("No fiber in service:"+promptMsg+",dftVal="+dftVal);
+	}
+	_serviceFiber.fiber=_app.Fiber.current;
+	var msg={promptMsg:promptMsg, dftVal:dftVal};
+	process.send({msg: {_serviceForward: msg}}); // Child (service) send to parent
+	var ret=_app.Fiber.yield(); // Await reply from parent
+	if(ret.err) { throw ret.err; }
+	return ret.data;
+}
+
+// Returns true if this function (e.g. SetAlarm) must run in the service,
+// not in the app that spawned it
+function runLocal(dftVal) {
+	switch(dftVal.split('\f')[0]) {
+		case "App.SetAlarm(": return true;
+		case "App.SendMessage(": return true;
+	}
+	return false;
+}
+
 function exec(cmd) {
 	return _exec(cmd, _app);
 }
@@ -73,7 +101,7 @@ function _prompt(promptMsg, dftVal) {
 function _load(cls, context) {
     if(!context) { context=_app.context; }
     if(eval("typeof "+cls) === 'undefined') {
-		console.log("cls="+cls+";context="+context);
+		//console.log("cls="+cls+";context="+context);
 		loadScripts(".", ['./ar2dscript/'+cls+'.js'], context, true);
     }
 }
@@ -84,19 +112,31 @@ function _newId(obj) {
     return obj.id;
 }
 
-function _rmtAdd(obj, html) {
+function _rmtAdd(obj, html, srcObj) {
     var tgtId=obj.htmlObj.attr('id');
-    _send('add', [tgtId, html], _app);
+    var srcId=srcObj ? srcObj.htmlObj.attr('id') : '';
+    _send('add', [tgtId, html, srcId], _app);
 }
 
 function _rmtSet(obj, html) {
     var tgtId=obj.htmlObj.attr('id');
+	//console.log("SET id="+tgtId+" html="+html+"; stack="+(new Error().stack));
     _send('set', [tgtId, html], _app);
 }
 
 function _rmtDel(obj) {
     var tgtId=obj.htmlObj.attr('id');    
     _send('del', [tgtId], _app);
+}
+
+function _rmtSho(obj) {
+    var tgtId=obj.htmlObj.attr('id');    
+    _send('sho', [tgtId], _app);
+}
+
+function _rmtHid(obj) {
+    var tgtId=obj.htmlObj.attr('id');    
+    _send('hid', [tgtId], _app);
 }
 
 /***********************************************************************8

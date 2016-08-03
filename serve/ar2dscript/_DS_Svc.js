@@ -2,7 +2,7 @@
  * Licensed under the MIT License (MIT)
  */
 
-/** DroidScript Lay emulation **/
+/** DroidScript Svc emulation **/
 
 /////////////////////////////////////////////////////////////////////////////////
 function _DS_Svc(packageName, classname, options, callback) {
@@ -12,10 +12,12 @@ function _DS_Svc(packageName, classname, options, callback) {
     this.classname=classname;
     this.onServiceReady=eval(callback);
     this.options=options;
-    _newId(this);
-    
-
+    _newId(this,"Svc");
+	
     var sName=getServicePath();
+	if (runningSvc(sName)) {
+		return;
+	}
     const sProc = cp.fork('serve/com.iglooware.ar2dscript.runservice.js');
 
     sProc.on('message', (msg) => {
@@ -27,7 +29,9 @@ function _DS_Svc(packageName, classname, options, callback) {
 			}
 			else if (msg.msg && msg.msg._serviceForward) {
 				var s=msg.msg._serviceForward;
-				_send(s.fn, s.args, _app);
+				sProc.send({_serviceReply:prompt(s.promptMsg, s.dftVal)}); // Send reply to child (service)
+				//console.log("Service _send:"+s.fn+JSON.stringify(s.args));
+				//_send(s.fn, s.args, _app);
 			}
 			else { this.onMessage(msg.msg); }
 		}.bind(this)).run();
@@ -36,6 +40,31 @@ function _DS_Svc(packageName, classname, options, callback) {
     sProc.send({start: sName});
 
     _app.services.push(this);
+}
+
+function pidofService(sName) {
+	var pName=fsp.join(os.tmpdir(), 'SERVICE-'+sName.replace(/\//g,'_')+'.pid');
+	console.log("pName="+pName);
+	try { return readFileFiber(pName); }
+	catch(e) { console.log("pidofService: "+e.message); return ""; }
+}
+
+function runningSvc(sName) {
+	var sPid=pidofService(sName);
+	console.log("Is running? "+sPid);
+	var ret=exec('ps aux');
+	if(ret.err) {
+		if(ret.err.error) { throw ret.err.error; }
+		if(ret.err.stderr != '') { throw new Error('ERROR: '+ret.err.stderr); }
+	}
+	var data=columnParser(ret.data);
+	for(var xa=0; xa<data.length; xa++) {
+		// USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+		var r=data[xa];
+		if (r['PID'] == sPid) { console.log("RUNNING"); return true; }
+		//else { console.log("PID="+r['PID']+';sPid='+sPid); }
+	}
+	return false;
 }
 
 function _DS_Svc_SetOnMessage(callback) {

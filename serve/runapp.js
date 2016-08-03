@@ -14,7 +14,10 @@ function runApp(app, session, connection) {
 		// NOTE: Only one connection per session is supported.  Send message to previous connected tab/window
 		// NOTE: to grey out so it appears inactive (as it is), and ask the client to disconnect.
 		if(connection) {
-			if(app.connection && app.connection != connection) { _send('dim', null, app); }
+			if(app.connection && app.connection != connection) {
+				console.log("DIM");
+				_send('dim', null, app);
+			}
 			app.connection=connection; // Save new connection
 		}
 		

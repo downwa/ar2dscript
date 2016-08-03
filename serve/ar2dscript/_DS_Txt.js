@@ -11,26 +11,28 @@ function _DS_Txt(text,width,height,options) {
     this.width=width;
     this.height=height;
     this.options=options;
-    var h=_createNode('DIV', _newId(this))
-    h.css('background',this.backColor='#000000');
-    h.css('color',this.textColor='#808080');
+    var h=_createNode('DIV', _newId(this,'Txt'))
+    h.css('background',this.backColor='#00000000');
+    h.css('color',this.textColor='#aaa');
+    h.css('font-family','Verdana,sans-serif');
     h.html(text);
     this.htmlObj=h;
+    this.visible=false;
 }
 
 function _DS_Txt_SetTextSize(size,mode) {
     if(parseInt(size) == size) { size += 'pt'; }
     this.htmlObj.css('font-size',this.size=size);
-    _rmtSet(this, this.htmlObj.html());
+    if(this.visible) { _rmtSet(this, this.htmlObj.html()); }
 }
 
 function _DS_Txt_SetText(text) {
     //console.log("SetText: this.id="+this.id);
     this.htmlObj.html(text);
-    _rmtSet(this, this.htmlObj.html());
+    if(this.visible) { _rmtSet(this, this.htmlObj.html()); }
 }
 
 function _DS_Txt_SetTextColor(color) {
     this.htmlObj.css('color',this.textColor=color);
-    _rmtSet(this, this.htmlObj.html());
+    if(this.visible) { _rmtSet(this, this.htmlObj.html()); }
 }

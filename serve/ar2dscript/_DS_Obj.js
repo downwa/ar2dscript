@@ -17,14 +17,15 @@ function _DS_Obj() {
 	h.css('background',this.backColor);
 	h.css('color',this.textColor);
 	this.htmlObj=h;
+	this.visible=false;
 }
 
 function _DS_Obj_SetPadding(left,top,right,bottom,mode) {
-	this.htmlObj.css('padding-left',  this.paddingLeft=left);
-	this.htmlObj.css('padding-top',   this.paddingTop=top);
-	this.htmlObj.css('padding-right', this.paddingRight=right);
-	this.htmlObj.css('padding-bottom',this.paddingBottom=bottom);
-	_rmtSet(this, this.htmlObj.html());
+	this.htmlObj.css('padding-left',  this.paddingLeft=(100*left));
+	this.htmlObj.css('padding-top',   this.paddingTop=(100*top));
+	this.htmlObj.css('padding-right', this.paddingRight=(100*right));
+	this.htmlObj.css('padding-bottom',this.paddingBottom=(100*bottom));
+	if(this.visible) _rmtSet(this, this.htmlObj.html());
 }
 function SetSize(width, height) {
     var obj=global._obj(module, arguments);

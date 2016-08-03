@@ -1,7 +1,7 @@
-//#!/usr/bin/env nodejs
 /* Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
  * Licensed under the MIT License (MIT)
  */
+
 const VERSION="2016.07.27.1";
 
 var _mid=0;
@@ -53,7 +53,7 @@ if(fs.statSync(ds).isDirectory()) {
 if (typeof inService !== 'undefined' && inService !== null && inService) {
 	initService(inService);
 }
-else { inService=false; initServer(); }
+else { inService=false; _serviceFiber=null; initServer(); }
 
 function initService(sName) {
 	var app={name:fsp.basename(fsp.dirname(sName)), path:sName, VERSION:VERSION,
@@ -69,7 +69,9 @@ function initApp(app, sDir, sName) {
 	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
 		console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, cheerio:cheerio, //require:require,
 		colorsafe:colorsafe, os:os, cp:cp, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION,
-		setTimeout:setTimeout, setInterval:setInterval
+		setTimeout:setTimeoutFiber, setInterval:setIntervalFiber, inService:inService, _serviceFiber:_serviceFiber,
+		readFileFiber:readFileFiber
+		// setTimoutFiber needed so callbacks will be run in fiber
 	};
 	app.context = new vm.createContext(sandbox);
 	loadScripts(".", ['./prompt.js'], app.context, true);
@@ -85,7 +87,8 @@ function initServer() {
 	
 	globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
 		  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
-		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','cheerio','initApp']);
+		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','cheerio','initApp',
+		  'inService','_serviceFiber','readFileFiber']);
 
 	loadScripts(".", ["serve.js"], null, true);
 }
@@ -121,7 +124,7 @@ function loadConfig() {
 
 function onFileChanged(changeType,filePath,fileCurrentStat,filePreviousStat) {
     //log('a change event occured:',arguments); // 0=event[update], 1=name, 2=new stat, 3=old stat
-    if(filePath.startsWith('serve')) { log("server changed."); process.exit(); }
+    if(filePath.startsWith('serve') && filePath != "serve/config.json") { log("server changed."); process.exit(); }
     var changedApp=fsp.basename(fsp.dirname(filePath));
     log('changedApp: '+changedApp+"; filePath="+filePath);
 }
@@ -141,7 +144,7 @@ function onWatchResult(err,watcherInstance,isWatching){
 
 
 function loadScripts(appName, scriptNames, context, isSystem) {
-	console.log("appName="+appName+";scriptNames="+scriptNames);
+	//console.log("appName="+appName+";scriptNames="+scriptNames);
     var scrInfos=readScripts(appName, scriptNames, isSystem);
     for(var xa=0; xa<scrInfos.length; xa++) {
 	var scrInfo=scrInfos[xa];
@@ -172,11 +175,11 @@ function readScripts(appName, scriptNames, isSystem) { // Read scripts from .apk
     }
     else {
 		var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
-		console.log("isSystem="+isSystem+";cwd="+process.cwd()+";appsDir="+options.appsDir+";appName="+appName+"***");
+		//console.log("isSystem="+isSystem+";cwd="+process.cwd()+";appsDir="+options.appsDir+";appName="+appName+"***");
 		for(var xa=0; xa<scriptNames.length; xa++) {
 		    var scriptName= scriptNames[xa];
 			// /sdcard/DroidScript/sdcard/backups/apps/assets/app.js
-			console.log("scriptName="+scriptName+";sep="+fsp.sep+";dir="+dir+"***");
+			//console.log("scriptName="+scriptName+";sep="+fsp.sep+";dir="+dir+"***");
 		    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
 		    //log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
 		    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
@@ -268,11 +271,17 @@ function dateToYMDHMS(date) {
 /***************************************************************************************************/
 
 function setTimeoutFiber(cb, ms) {
-    setTimeout(function() { Fiber(cb).run(); }, ms);
+	if ((typeof cb) === "string") { cb=eval(cb); }
+	if ((typeof cb) !== "function") { throw new Error("Invalid callback for setTimeout: "+cb); }
+	var args=Array.prototype.slice.call(arguments,2);
+    setTimeout(function() { Fiber(function() { cb.apply(this, args); }).run(); }, ms);
 }
 
 function setIntervalFiber(cb, ms) {
-    setInterval(function() { Fiber(cb).run(); }, ms);
+	if ((typeof cb) === "string") { cb=eval(cb); }
+	if ((typeof cb) !== "function") { throw new Error("Invalid callback for setInterval: "+cb); }
+	var args=Array.prototype.slice.call(arguments,2);
+    setInterval(function() { Fiber(function() { cb.apply(this, args); }).run(); }, ms);
 }
 
 function execFiber(cmd, app) {
@@ -418,21 +427,16 @@ function readZipAsText(zipFile, files) {
 	    for(var xa=0; xa<files.length; xa++) {
 		if(rets[xa] === null && entry.fileName === files[xa]) {
 		    anyFound=true;
-		    zipfile.openReadStream(entry, /*(err, readStream) => { fiber.run({err:err,stats:stats}); });
-    var ret=Fiber.yield(); // Pause for exec
-*/					   
-					   
-					   
-					   function(err, readStream) {
-			if (err) throw err;
-			var string='';
-			readStream.on('data', function(part) { string += part; });
-			readStream.on('end', function() {
-			    rets[this]=string;
-			    var cachePath=fsp.join(tmp, zipFile.replace(/\//g,"_")+"#"+files[this].replace(/\//g,"_"));
-			    Fiber(function() { writeFileFiber(cachePath, string); }).run(); // file, data, options
-			    zipfile.readEntry();
-			}.bind(this));
+		    zipfile.openReadStream(entry, function(err, readStream) {
+				if (err) throw err;
+				var string='';
+				readStream.on('data', function(part) { string += part; });
+				readStream.on('end', function() {
+					rets[this]=string;
+					var cachePath=fsp.join(tmp, zipFile.replace(/\//g,"_")+"#"+files[this].replace(/\//g,"_"));
+					Fiber(function() { writeFileFiber(cachePath, string); }).run(); // file, data, options
+					zipfile.readEntry();
+				}.bind(this));
 		    }.bind(xa));
 		}
 	    }
@@ -477,6 +481,5 @@ function stringifyCookies(cookies) {
     }
     return list.join('; ');
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////

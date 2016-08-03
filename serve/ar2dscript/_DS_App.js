@@ -22,13 +22,15 @@ function _DS_App_CreateLayout(type, options) {
 function _DS_App_AddLayout(layout) {
     layout=_objects[layout];
     //console.log("AddLayout: this.id="+this.id+";layout.id="+layout.id);
-    layout.parent={id:this.id};
+    layout.parent={id:this.id, cls:"App"};
+	_DS_Lay_SetSize.call(layout); // Already set size, just update units
     this.layouts.push({id:layout.id});
     var body=$('body');
     var lid='#'+layout.htmlObj.attr('id');
     body.append($(lid))
     //console.log("AddLayout htm="+$.html(lid));
     _rmtAdd({htmlObj:body}, $.html(lid));
+	layout.visible=true;
 }
 
 function _DS_App_GetModel() {
@@ -61,6 +63,25 @@ function _DS_App_GetRunningServices() {
 	return ret;
 }
 
+function _DS_App_SetAutoBoot(tfService) {
+	var options=JSON.parse(fs.readFileSync('serve/config.json'));
+	var ab=options.autoboots;
+	if (tfService) {
+		var add=true;
+		for(var xa=0; xa<ab.length; xa++) {
+			if (ab[xa] == _app.name) { add=false; }
+		}
+		if (add) { options.autoboots.push(_app.name); }
+	}
+	else {
+		for(var xa=ab.length-1; xa>=0; xa--) {
+			if (ab[xa] == _app.name) { options.autoboots.splice(xa,1); }
+		}
+	}
+	//console.log("NEW OPTIONS: ",options);
+	fs.writeFileSync('serve/config.json',JSON.stringify(options));
+}
+
 function _DS_App_SendMessage(msg) {
 	if(process.send) { process.send({msg: msg}); }
 }
@@ -74,12 +95,12 @@ function _DS_App_SetAlarm(type,id,callback,time,interval) {
 	type=type.toLowerCase();
 	switch(type) {
 		case "set": {
-			var alarm={alarm:setTimeout(callback, time-(new Date())), type:type, id:id, time:time};
+			var alarm={alarm:setTimeout(eval(callback), time-(new Date()), id), type:type, id:id, time:time};
 			_app.alarms[id]=alarm;
 			break;
 		}
 		case "repeat": {
-			var alarm={alarm:setInterval(callback, time-(new Date())), type:type, id:id, time:time};
+			var alarm={alarm:setInterval(eval(callback), time-(new Date()), id), type:type, id:id, time:time};
 			_app.alarms[id]=alarm;
 			break;
 		}

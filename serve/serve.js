@@ -36,7 +36,8 @@ var wsServer = new WebSocketServer({httpServer: server, autoAcceptConnections: f
 wsServer.on('request', wsHandler);
 
 globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber',
-	  'readFileFiber','readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','VERSION']);
+	  'readFileFiber','readdirFiber','__dirname','loadScripts','ds','globalize',
+	  'cacheFromZip','VERSION','inService','_serviceFiber']);
 loadScripts(".", ["runapp.js"], null, true);
 
 
@@ -71,10 +72,11 @@ function startAutoBoots() {
     // FIXME: Only start apps that called app.SetAutoBoot(true)
     var ab=options.autoboots;
     for(var xa=0; xa<ab.length; xa++) {
-	log("AutoBoot: "+ab[xa]);
-	//FIXME:
-	//var a=getApp(ab[xa]);
-    	//Fiber(function() { runApp(a); }).run();    
+		log("AutoBoot: "+ab[xa]);
+		Fiber(function() {
+			var a=getApp(ab[xa]);
+			runApp(a);
+		}).run();    
     }
 }
 

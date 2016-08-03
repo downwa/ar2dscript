@@ -23,53 +23,92 @@ function _DS_Dlg(title, options) {
 	this.options=options;
 	this.timer=null;
 	this.layouts=[];
+	this.visible=false;
 	
-	this.backColor='#000000';
-	this.textColor='#808080'; 
-	var h=_createNode('DIV', _newId(this))
-	h.css('background',this.backColor);
-	h.css('color',this.textColor);
-	if(title) { h.html("<h1>"+title+"</h1>"); }
+	var h=_createNode('DIV', _newId(this,"Dlg"))
+	h.css('background',this.backColor='gray');
+	h.css('color',this.textColor='white');
+	if(title) { h.html("<h1 style='color:#0000BB'>"+title+"</h1><hr style='color:#0000BB' />"); }
+	h.css('border-color','gray');
+	h.css('border-style','solid');
 	$('#headhide').append(h); // Not in body, hide in head
 	this.htmlObj=h;
+	//_rmtSet(this, $.html(this.htmlObj)); // Send outerHTML
 }
 
 function _DS_Dlg_SetBackColor(color) {
-	this.backColor=color;
+	this.backColor=color; //='gray';
 	this.htmlObj.css('background',this.backColor);
-	_rmtSet(this, this.htmlObj.html());
+	if (this.visible) {
+		// Send outerHTML: $.html(h)
+		_rmtSet(this, $.html(this.htmlObj));
+		console.log("SETBACKCOLOR: "+$.html(this.htmlObj));
+	}
 }
+/*
+ *
+ *
+ *                                _dlgPop = app.CreateDialog( null, "NoDim,NoTouch,NoFocus" ); ^M
+                                _dlgPop.SetBackColor( "#cc000000" );^M
+                                _dlgPop.SetPosition( -1, options.indexOf("bottom")>-1 ? 0.75 : 0.25  );^M
+                                var lay = app.CreateLayout( "linear", "vcenter" );^M
+                                lay.SetPadding( 0.02, 0.02, 0.02, 0.02 );^M
+                                _dlgPop.AddLayout( lay );^M
+                                _txtDlgPop = app.CreateText( msg );^M
+                                _txtDlgPop.SetTextSize( 22 );^M
+                                _txtDlgPop.SetTextColor( "#ffffff" );^M
+                                lay.AddChild( _txtDlgPop );^M
+ 
+ **/
 
 // -1 = automatic position
 function _DS_Dlg_SetPosition(left, top, width, height) {
 	this.htmlObj.css('position', 'absolute');
-	if(left && left>=0) { this.htmlObj.css('left', (this.left=left)+'vw'); }
-	if(top && top>=0) { this.htmlObj.css('top', (this.top=top)+'vh'); }
-	if(width && width>=0) { this.htmlObj.css('width', (this.width=width)+'vw'); }
-	if(height && height>=0) { this.htmlObj.css('height', (this.height=height)+'vh'); }
+	if(left && left>=0) { this.htmlObj.css('left', (this.left=(100*left))+'vw'); }
+	if(top && top>=0) { this.htmlObj.css('top', (this.top=(100*top))+'vh'); }
+	if(width && width>=0) { this.htmlObj.css('width', (this.width=(100*width))+'vw'); }
+	if(height && height>=0) { this.htmlObj.css('height', (this.height=(100*height))+'vh'); }
+	if (this.visible) {
+		_rmtSet(this, $.html(this.htmlObj)); // Send outerHTML
+		console.log("SETPOSITION: "+$.html(this.htmlObj));
+	}
 }
 
 function _DS_Dlg_AddLayout(layout) {
 	layout=_objects[layout];
 	//console.log("AddLayout: this.id="+this.id+";layout.id="+layout.id);
-	layout.parent={id:this.id};
+	layout.parent={id:this.id, cls:"Dlg"};
+	_DS_Lay_SetSize.call(layout); // Already set size, just update units
 	this.layouts.push({id:layout.id});
-	var body=$('body');
+	var did='#'+this.htmlObj.attr('id');
+	var dlg=$(did);
 	var lid='#'+layout.htmlObj.attr('id');
-	body.append($(lid))
-	//console.log("AddLayout htm="+$.html(lid));
-	_rmtAdd({htmlObj:body}, $.html(lid));
+	dlg.append($(lid))
+	if (this.visible) {
+		//console.log("AddLayout htm="+$.html(lid));
+		_rmtAdd({htmlObj:dlg}, $.html(lid));
+	}
 }
 
 function _DS_Dlg_Show() {
-	this.htmlObj.append(this.htmlObj);
-	var lid='#'+this.htmlObj.attr('id');
-	_rmtAdd(this, $.html(lid));
+	//this.htmlObj.append(this.htmlObj);
+	//var did='#'+this.htmlObj.attr('id');
+	//_rmtAdd(this, $.html(did));
+	//
+	var body=$('body');
+    var did='#'+this.htmlObj.attr('id');
+    body.append($(did));
+	//console.log("body="+$.html('body'));
+	this.visible=true;
+    //console.log("AddLayout htm="+$.html(lid));
+    //_rmtSet({htmlObj:body}, $.html('body'));
+	_rmtAdd({htmlObj:body}, $.html(this.htmlObj), this); // Send outerHTML
 }
 
 function _DS_Dlg_Hide() {
+	this.visible=false;
 	$('#headhide').append(this.htmlObj); // Remove from body, hide in head
-	_rmtDel(this);
+	_rmtHid(this);
 }
 
 
