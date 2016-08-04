@@ -70,7 +70,9 @@ function main() {
 		    var ret=fun.apply(obj, args);
 		    if(d.cb !== 'N') { send({mid:d.mid, args:[ret]}); }
 		}
-		catch(e) { throw new Error(e.message+": executing "+d.fn+": "+fun.toString(), e.fileName, e.lineNumber); }
+		catch(e) {
+			//alert(e.message+": executing "+d.fn+": "+fun.toString()+" with "+JSON.stringify(args));
+			throw new Error(e.message+": executing "+d.fn+": "+fun.toString()+" with "+JSON.stringify(args), e.fileName, e.lineNumber); }
 	    }
 	    else { throw new Error('Missing function: '+d.fn); }
     //         alert('received: '+d.fn);
@@ -83,10 +85,18 @@ function main() {
 }
 
 ////////////////////////////
-
-function add(id, htm) {
-    var el=document.getElementById(id);
-    el.innerHTML+=htm;
+// add: create element if not existent, show it otherwise
+function add(id, htm, srcid) {
+	var srcel=null;
+	if(srcid) {
+		srcel=document.getElementById(srcid);
+		//srcel.innerHTML=htm; // Risking lack of update to object contents
+		if (srcel) { srcel.style.display=''; }
+	}
+	if(!srcel) {
+		var el=document.getElementById(id);
+		el.innerHTML+=htm;
+	}
 }
 
 function set(id, htm) {
@@ -97,6 +107,16 @@ function set(id, htm) {
 function del(id) {
     var el=document.getElementById(id);
     el.parentNode.removeChild(el);
+}
+
+function sho(id) {
+	var el=document.getElementById(id);
+	el.style.display='';
+}
+
+function hid(id) {
+	var el=document.getElementById(id);
+	el.style.display='none';
 }
 
 var dimAmt=0.0;
