@@ -86,21 +86,22 @@ function _DS_App_SendMessage(msg) {
 	if(process.send) { process.send({msg: msg}); }
 }
 
-function _DS_App_SetAlarm(type,id,callback,time,interval) {
+function _DS_App_SetAlarm(type,id,callback,time,interval,options) {
 	// type=Set,Repeat,Cancel
 	// id=number
 	// callback when alarm fires
 	// time when alarm should fire
 	// interval milliseconds betweeen repeat (if type is Repeat)
 	type=type.toLowerCase();
+	options=(options ? options.toLowerCase() : "");
 	switch(type) {
 		case "set": {
-			var alarm={alarm:setTimeout(eval(callback), time-(new Date()), id), type:type, id:id, time:time};
+			var alarm={alarm:setTimeout(eval(callback), time-(new Date()), id), type:type, id:id, time:time, options:options};
 			_app.alarms[id]=alarm;
 			break;
 		}
 		case "repeat": {
-			var alarm={alarm:setInterval(eval(callback), time-(new Date()), id), type:type, id:id, time:time};
+			var alarm={alarm:setInterval(eval(callback), time-(new Date()), id), type:type, id:id, time:time, options:options};
 			_app.alarms[id]=alarm;
 			break;
 		}
@@ -115,8 +116,17 @@ function _DS_App_SetAlarm(type,id,callback,time,interval) {
 }
 
 function _DS_App_CreateDialog(title, options) {
-	_load("_DS_Dlg");
-	return new _DS_Dlg(title, options).id;
+    _load("_DS_Dlg");
+    return new _DS_Dlg(title, options).id;
+}
+
+function _DS_App_CreateButton(text, width, height, options) {
+    _load("_DS_Btn");
+    return new _DS_Btn(text, width, height, options).id;
+}
+
+function _DS_App_Exit() {
+    _send('exit', [], _app, false); // false = do not awaitReturn
 }
 
 ////////////

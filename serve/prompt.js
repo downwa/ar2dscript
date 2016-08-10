@@ -79,11 +79,16 @@ function rmtPrompt(promptMsg, dftVal) {
 // Returns true if this function (e.g. SetAlarm) must run in the service,
 // not in the app that spawned it
 function runLocal(dftVal) {
-	switch(dftVal.split('\f')[0]) {
-		case "App.SetAlarm(": return true;
-		case "App.SendMessage(": return true;
-	}
-	return false;
+    var args=dftVal.split('\f');
+    switch(args[0]) {
+	    case "App.SetAlarm(": {
+		var options=(args.length >= 7 && args[6]) ? args[6].toLowerCase() : "";
+		if(options.indexOf("app") > -1) { return false; } // Handle in App, not Service
+		return true;
+	    }
+	    case "App.SendMessage(": return true;
+    }
+    return false;
 }
 
 function exec(cmd) {
@@ -91,18 +96,18 @@ function exec(cmd) {
 }
 
 function alert(msg) {
-    _send('alert', [msg], _app, true);
+    _send('alert', [msg], _app, true); // true=awaitReturn
 }
 
 function _prompt(promptMsg, dftVal) {
-    return _send('prompt', [promptMsg, dftVal], _app, true);
+    return _send('prompt', [promptMsg, dftVal], _app, true); // true=awaitReturn
 }
 
 function _load(cls, context) {
     if(!context) { context=_app.context; }
     if(eval("typeof "+cls) === 'undefined') {
 		//console.log("cls="+cls+";context="+context);
-		loadScripts(".", ['./ar2dscript/'+cls+'.js'], context, true);
+		loadScripts(".", ['./ar2dscript/'+cls+'.js'], context, true); // true=awaitReturn
     }
 }
 

@@ -271,25 +271,31 @@ function dateToYMDHMS(date) {
 /***************************************************************************************************/
 
 function setTimeoutFiber(cb, ms) {
-	if ((typeof cb) === "string") { cb=eval(cb); }
-	if ((typeof cb) !== "function") { throw new Error("Invalid callback for setTimeout: "+cb); }
-	var args=Array.prototype.slice.call(arguments,2);
-    setTimeout(function() { Fiber(function() { cb.apply(this, args); }).run(); }, ms);
+    if ((typeof cb) === "string") { cb=eval(cb); }
+    if ((typeof cb) !== "function") { throw new Error("Invalid callback for setTimeout: "+cb); }
+    var args=Array.prototype.slice.call(arguments,2);
+    setTimeout(function() { Fiber(function() { 
+	try { cb.apply(this, args); }
+	catch(e) { log(colorsafe.red(e.stack)); }
+    }).run(); }, ms);
 }
 
 function setIntervalFiber(cb, ms) {
-	if ((typeof cb) === "string") { cb=eval(cb); }
-	if ((typeof cb) !== "function") { throw new Error("Invalid callback for setInterval: "+cb); }
-	var args=Array.prototype.slice.call(arguments,2);
-    setInterval(function() { Fiber(function() { cb.apply(this, args); }).run(); }, ms);
+    if ((typeof cb) === "string") { cb=eval(cb); }
+    if ((typeof cb) !== "function") { throw new Error("Invalid callback for setInterval: "+cb); }
+    var args=Array.prototype.slice.call(arguments,2);
+    setInterval(function() { Fiber(function() { 
+	try { cb.apply(this, args); }
+	catch(e) { log(colorsafe.red(e.stack)); }
+    }).run(); }, ms);
 }
 
 function execFiber(cmd, app) {
-	var fiber=app.Fiber.current;
-	exec(cmd, (error, stdout, stderr) => {
-		fiber.run({err:{error:error, stderr:stderr}, data:stdout});
-	});
-	return app.Fiber.yield();
+    var fiber=app.Fiber.current;
+    exec(cmd, (error, stdout, stderr) => {
+	fiber.run({err:{error:error, stderr:stderr}, data:stdout});
+    });
+    return app.Fiber.yield();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

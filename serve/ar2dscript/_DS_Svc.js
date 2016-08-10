@@ -18,9 +18,9 @@ function _DS_Svc(packageName, classname, options, callback) {
 	if (runningSvc(sName)) {
 		return;
 	}
-    const sProc = cp.fork('serve/com.iglooware.ar2dscript.runservice.js');
+    this.sProc = cp.fork('serve/com.iglooware.ar2dscript.runservice.js');
 
-    sProc.on('message', (msg) => {
+    this.sProc.on('message', (msg) => {
 		_app.Fiber(function() { // Callbacks need a new fiber
 			//console.log('PARENT got message:', msg);
 			if(msg._serviceReady) { this.onServiceReady(); }
@@ -29,7 +29,7 @@ function _DS_Svc(packageName, classname, options, callback) {
 			}
 			else if (msg.msg && msg.msg._serviceForward) {
 				var s=msg.msg._serviceForward;
-				sProc.send({_serviceReply:prompt(s.promptMsg, s.dftVal)}); // Send reply to child (service)
+				this.sProc.send({_serviceReply:prompt(s.promptMsg, s.dftVal)}); // Send reply to child (service)
 				//console.log("Service _send:"+s.fn+JSON.stringify(s.args));
 				//_send(s.fn, s.args, _app);
 			}
@@ -37,7 +37,7 @@ function _DS_Svc(packageName, classname, options, callback) {
 		}.bind(this)).run();
     });
 
-    sProc.send({start: sName});
+    this.sProc.send({start: sName});
 
     _app.services.push(this);
 }
@@ -50,21 +50,32 @@ function pidofService(sName) {
 }
 
 function runningSvc(sName) {
-	var sPid=pidofService(sName);
-	console.log("Is running? "+sPid);
-	var ret=exec('ps aux');
-	if(ret.err) {
-		if(ret.err.error) { throw ret.err.error; }
-		if(ret.err.stderr != '') { throw new Error('ERROR: '+ret.err.stderr); }
-	}
-	var data=columnParser(ret.data);
-	for(var xa=0; xa<data.length; xa++) {
-		// USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-		var r=data[xa];
-		if (r['PID'] == sPid) { console.log("RUNNING"); return true; }
-		//else { console.log("PID="+r['PID']+';sPid='+sPid); }
-	}
-	return false;
+    var sPid=pidofService(sName);
+    console.log("Is running? "+sPid);
+    var ret=exec('ps aux');
+    if(ret.err) {
+	if(ret.err.error) { throw ret.err.error; }
+	if(ret.err.stderr != '') { throw new Error('ERROR: '+ret.err.stderr); }
+}
+    var data=columnParser(ret.data);
+    for(var xa=0; xa<data.length; xa++) {
+	// USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+	var r=data[xa];
+	if (r['PID'] == sPid) { console.log("RUNNING"); return true; }
+	//else { console.log("PID="+r['PID']+';sPid='+sPid); }
+    }
+    return false;
+}
+
+function _DS_Svc_SendMsg(msg) {
+    if(this.sProc) { this.sProc.send({msg: msg}); }
+}
+
+function _DS_Svc_Stop() {
+    if(this.sProc) {
+	this.sProc.kill();
+	setTimeout(function() { this.sProc.kill('SIGKILL'); /*this.sProc=null;*/ }.bind(this), 2000);
+    }
 }
 
 function _DS_Svc_SetOnMessage(callback) {

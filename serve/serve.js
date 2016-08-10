@@ -106,7 +106,9 @@ function getApp(name, session) {
 	    log("getApp "+err);
 	    throw err;
 	}
-	return {name:name};
+	return null;
+	//log("getApp: ENOENT: empty");
+	//return {name:name};
     }
 }
 
@@ -203,7 +205,7 @@ function backgroundGradient(appName, session, objId) {
 }
 
 var omtime1=0,omtime2=0;
-function changedApps() {
+function changedApps() { // If either appsDir or apksDir has been modified
     var mtime1=statFiber(options.appsDir).mtime;
     var mtime2=statFiber(options.apksDir).mtime;
     var c1=(omtime1 < mtime1);
@@ -245,9 +247,16 @@ function httpHandler(request, response) {
 	    //log('session=' + cookies.session);
 	    var filePath=null;
 	    if(url === "/") {
+		var idxName="_index";
+		if(getApp(idxName, cookies.session)) {
+// 		    url+="Apps/"+idxName+"/";
+		    respond(3,response, cookies, 301, null, null,"<html><head><title>Moved Permanently</title></head><body>"+
+			    "<h1>Moved Permanently: "+url+"</h1></body></html>", url);
+		    return;
+		}
 		var content="<html><head><title>Applications</title></head><body><h1>Applications</h1><ul>";
 		var mod=changedApps();
-		if(mod.c1 || mod.c2) {
+		if(mod.c1 || mod.c2) { // Update the list of apps/apks if either is changed
 		    apps=listAppsApks(mod.c1, mod.c2);
 		}
 		    
@@ -284,12 +293,19 @@ function httpHandler(request, response) {
 			    "<h1>Moved Permanently: "+url+"</h1></body></html>", url);
 			return;
 		    }
-	//             //log("appName="+appName);
-		    if(getApp(appName, cookies.session)) { 
-			filePath = normalizePath('client.html'); }
+		    if(appName == "") {
+			respond(4,response, cookies, 404, null, null, "<html><head><title>(No application specified)</title></head>"+
+			    '<body><a href="/" style="background:white; color:black; display:;" id="indexLink">&lt;Index</a>'+
+			    "<h1>(No application specified)</h1></body></html>");
+			log(colorsafe.red('No application specified'));
+			return;
+		    }
+		    if(getApp(appName, cookies.session)) { filePath = normalizePath('client.html'); }
 		    else {
-			respond(4,response, cookies, null, null, null, "<html><head><title>(No Applications)</title></head>"+
-			    "<body><h1>(No Applications)</h1></body></html>");
+			respond(5,response, cookies, 404, null, null, "<html><head><title>(Application not found: "+appName+")</title></head>"+
+			    '<body><a href="/" style="background:white; color:black; display:;" id="indexLink">&lt;Index</a>'+
+			    "<h1>(Application not found: "+appName+")</h1></body></html>");
+			log(colorsafe.red('Application not found: '+appName));
 			return;
 		    }
 		}
@@ -302,19 +318,20 @@ function httpHandler(request, response) {
 	    // Serve regular files.
 	    try { accessFiber(filePath, fs.R_OK); }
 	    catch(e) {
-		respond(5,response, cookies, 404, null, null,"<html><head><title>Not Found</title></head><body>"+
-		    "<h1>Not Found: "+filePath+"</h1></body></html>");
+		respond(6,response, cookies, 404, null, null, "<html><head><title>Not found: "+filePath+"</title></head>"+
+		    '<body><a href="/" style="background:white; color:black; display:;" id="indexLink">&lt;Index</a>'+
+		    "<h1>Not found: "+filePath+"</h1></body></html>");
 		log(colorsafe.red('ERR Not found: '+filePath+"; e="+e));
 		return;
 	    }
 	    var stat = statFiber(filePath);
 	    response.on('error', function(err) { response.end(); });
 	    var ctype=getContentType(filePath);
-	    respond(6,response, cookies, 200, ctype, stat.size);
+	    respond(7,response, cookies, 200, ctype, stat.size);
 	    fs.createReadStream(filePath).pipe(response); // End automatically
 	}
 	catch(e) {
-	    respond(5,response, cookies, 500, null, null,"<html><head><title>Server Error</title></head><body>"+
+	    respond(8,response, cookies, 500, null, null,"<html><head><title>Server Error</title></head><body>"+
 		"<h1>Server Error: "+filePath+"</h1></body></html>");
 	    log(colorsafe.red('ERR CRASH '+filePath+"; e="+e.stack));
 	    return;
@@ -449,15 +466,17 @@ function handleCallback(obj) {
     }
     if(obj.mid === null) {
         log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
-	var objId=obj.args[0];
-	var onTouch=app.context._objects[objId].onTouch;
-	Fiber(function() {
-	    try { onTouch(); }
-	    catch(e) { log(e.stack); }
-	}).run();
+	var id=obj.args[0].id;
+	if(id) {
+	    var onClick=app.context._objects[id].onClick;
+	    Fiber(function() {
+		try { onClick(); }
+		catch(e) { log(e.stack); }
+	    }).run();
+	}
 	return;
     }
-    else {
+    else if(app.sent) {
 	//log('sent='+util.inspect(app.sent)+';mid('+obj.mid+')==sent.mid('+app.sent.mid+')***');
 	for(var xa=0; xa<app.sent.length; xa++) {
 	    if(obj.mid === app.sent[xa].mid) {
