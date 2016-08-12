@@ -2,8 +2,10 @@
  * Licensed under the MIT License (MIT)
  */
 
+const _debugRPC=true;
+
 var _objects=[];
-_objects[1]={id:1, cls:'App', layouts:[]} // Application object
+_objects[1]={id:1, cls:'App', children:[], visible:true}; // Application object
 var _nextObjId_=2; // Must start at >0
 
 var navigator={
@@ -111,64 +113,74 @@ function _load(cls, context) {
     }
 }
 
-function _newId(obj) {
+function _newId(obj, cls) {
     obj.id=_nextObjId_++; // Allocate a new id
+    obj.cls=cls;
+    obj.visible=false;
+    obj.attrs={};
+    obj.css={background:'#000000', color:'#808080'}; //, 'font-family':'Verdana,sans-serif'}; // Default font set in body.css
+    obj.children=[];
+    obj.parent=null;
     _objects[obj.id]=obj;
     return obj.id;
 }
 
-function _rmtAdd(obj, html, srcObj) {
-    var tgtId=obj.htmlObj.attr('id');
-    var srcId=srcObj ? srcObj.htmlObj.attr('id') : '';
-    _send('add', [tgtId, html, srcId], _app);
+function _set(attrs) { // NOTE: attrs may contain only a partial set of attributes of "this" (or some other object)
+    var visibleSet=false;
+    if(attrs.visible) { visibleSet=true; }
+    //console.log("attrs=",attrs,";visibleSet="+visibleSet);
+    if(this.visible && attrs.children && !attrs.id) { // Updated children: Send them all
+	_sendDescendants(attrs);
+    }
+    if(_allVisible(this)) { // If this and all parents are visible:
+	if(visibleSet) { // And we JUST were set visible
+	    _sendDescendants(this); // Send all visible children
+	    var obj=_partialCopy(this);
+	    try { _send('crt', [obj], _app, _debugRPC); }
+	    catch(e) { console.log(colorsafe.red("ERROR: "+e.stack+"; this="+util.inspect(obj))); }
+	}
+	else { attrs.id=this.id; _send('upd', [attrs], _app, _debugRPC); } // send attrs (adding id attribute)
+    } 
+    else if(attrs.visible===false) {
+	attrs.id=this.id; _send('upd', [attrs], _app, _debugRPC); // send attrs (adding id attribute)
+    }
 }
 
-function _rmtSet(obj, html) {
-    var tgtId=obj.htmlObj.attr('id');
-	//console.log("SET id="+tgtId+" html="+html+"; stack="+(new Error().stack));
-    _send('set', [tgtId, html], _app);
+function _sendDescendants(obj) {
+    var chs=obj.children;
+    for(var xa=0; xa<chs.length; xa++) {
+	var child=_partialCopy(_objects[chs[xa].id]);
+	_sendDescendants(child);
+	if(child.visible) {
+	    try { _send('crt', [child], _app, true); }
+	    catch(e) { console.log(colorsafe.red("ERROR: "+e.stack+"; this="+util.inspect(child))); }
+	}
+    }
 }
 
-function _rmtDel(obj) {
-    var tgtId=obj.htmlObj.attr('id');    
-    _send('del', [tgtId], _app);
+function _partialCopy(obj) {
+    return {cls:obj.cls, id:obj.id, visible:obj.visible, attrs:obj.attrs, css:obj.css, children:obj.children, parent:obj.parent};
 }
 
-function _rmtSho(obj) {
-    var tgtId=obj.htmlObj.attr('id');    
-    _send('sho', [tgtId], _app);
+function _allVisible(obj) {
+    var av=true;
+    for(var xa=0; xa<10; xa++) { // Limit levels to traverse
+	if(!obj || !obj.visible) { av=false; break; }
+	if(obj.cls == "App" || obj.cls == "Dlg") { break; }
+	if(!obj.parent) { throw Error("NO PARENT YET: cls="+obj.cls+"; visible="+obj.visible); }
+	obj=_objects[obj.parent.id];
+    }
+    //console.log("allVisible="+av+" cls="+obj.cls+" id="+obj.id);
+    return av;
 }
 
-function _rmtHid(obj) {
-    var tgtId=obj.htmlObj.attr('id');    
-    _send('hid', [tgtId], _app);
-}
-
-/***********************************************************************8
-var cheerio = require('cheerio');
-
-var $ = cheerio.load(
-    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");     
-$('html').html(
-    "<html><head><title>Test</title><div id='headhide' style='display:none'></div></head><body><h1>Hello</h1><ul id='try'><li>first</li><li>2nd</li></ul></body></html>");
-
-var e=$.parseHTML("<div style='width:100vw' id='testme'></div>");    
-$('#headhide').append(e);
-    
-$('#headhide').append($('#testme'))
-
-$.root().html()
-
-$('body').append($('#testme'))
-$('#testme').css('width','95vw')
-     
-*/
-    
-function _createNode(elem, idNum) {
-    var id="obj_"+idNum;
-    $('#headhide').append($.parseHTML("<"+elem+" id="+id+"></"+elem+">"));
-    //console.log("_createNode: "+id+";root="+$.root().html()+";htm="+$.html('#'+id)+"***");
-    return $('#'+id);
+// Return decimal RGB+Alpha representation from hex Alpha+RGB
+function _RGBA(hexARGB) {
+    if(hexARGB[0] !== '#') { return hexARGB; }
+    var A=(parseInt(hexARGB.substring(1,3),16)/255).toFixed(2);
+    return 'rgba('+parseInt(hexARGB.substring(3,5),16)+','+
+	parseInt(hexARGB.substring(5,7),16)+','+
+	parseInt(hexARGB.substring(7,9),16)+','+A+')';
 }
 
 function _parseLayoutOptions(options) {

@@ -2,14 +2,14 @@
  * Licensed under the MIT License (MIT)
  */
 
-/** DroidScript Lay emulation **/
+/** DroidScript Scr emulation **/
 
 /////////////////////////////////////////////////////////////////////////////////
-function _DS_Lay(type, options) {
-     _newId(this,"Lay");
+function _DS_Scr(width, height, options) {
+     _newId(this,"Scr");
     // type=Linear,Frame,Absolute
     // options=(Linear) Vertical|Horizontal,FillXY
-    this.type=type;
+    this.type="linear";
     this.css={'display':'table-cell'};
     var opts=_parseLayoutOptions(this.options=options);
     
@@ -21,15 +21,33 @@ function _DS_Lay(type, options) {
     else if(opts.hAlign == "right") { this.css['text-align']='right'; }
     else { this.css['text-align']='left'; }
     
+    this.width=width; this.height=height;
+    
     if(opts.fillx) { this.width=95; }
     if(opts.filly) { this.height=95; } // Slightly less to avoid scroll bars
-    _DS_Lay_SetSize.call(this); // Already set
-    this.css.background='linear-gradient(black, rgba(64, 64, 64, 1))';
+    _DS_Scr_SetSize.call(this); // Already set
+    this.css.background='linear-gradient(black, rgba(64, 64, 64, 255))';
     this.css.color='grey';
     this.opts=opts;
 }
 
-function _DS_Lay_SetSize(width, height) {
+/**
+ * 		// display:flex is needed in a wrapper div to force inner div to size minimum (otherwise, it will size maximum).  
+ * 		// float:left/right could also do this but not with centering
+                <div style="display:flex"><!-- Wrapper for scroller -->
+                // margin: top right bottom left (use auto on left=right justify, auto on right=left justify, auto on both=center
+                // overflow: auto (or scroll) turns on scroll bars overflow-x or overflow-y for only one scroll bar
+                // white-space:nowrap forces lines to full width for scroller
+                        <div id="5" style="margin: 0 0 0 auto; overflow: auto; white-space:nowrap; vertical-align: bottom; text-align: center; color: grey; height:10vh; background:green;"><!-- Scroller -->
+                        
+                        
+                                <div id="6" style="vertical-align: top; text-align: left; width: 95%; height: 95%; color: grey; "><!-- layScroll -->
+                                        <div id="7" style="background: rgba(0, 0, 0, 0);">Line #1 really long line to trigger horizontal scrolling</div>
+
+
+ **/
+
+function _DS_Scr_SetSize(width, height) {
     if(width) { this.width=width; }
     if(height) { this.height=height; }
     if (this.parent && this.parent.cls === "App") { this.hUnit="vw"; this.vUnit="vh"; }
@@ -43,7 +61,7 @@ function _DS_Lay_SetSize(width, height) {
     else if(height) { _set.call(this, {css:{height:this.css.height}}); }
 }
 
-function _DS_Lay_AddChild(child, order) {
+function _DS_Scr_AddChild(child, order) {
     child=_objects[child];
     child.parent={id:this.id};
     child.visible=true;
@@ -70,7 +88,7 @@ function _DS_Lay_AddChild(child, order) {
     _set.call(this, {children:this.children});
 }
 
-function _DS_Lay_RemoveChild(child) {
+function _DS_Scr_RemoveChild(child) {
     child=_objects[child];
     child.parent={};
     child.visible=false;

@@ -17,7 +17,7 @@ var options={
 
 const columnParser = require('node-column-parser'); // columnParser() 
 const colorsafe=require('colors/safe');
-const cheerio = require('cheerio');
+//const cheerio = require('cheerio');
 const watchr = require('watchr');
 const yauzl = require("yauzl"); // Unzip
 const exec = require('child_process').exec; // exec()
@@ -67,7 +67,7 @@ function initService(sName) {
 
 function initApp(app, sDir, sName) {
 	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
-		console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, cheerio:cheerio, //require:require,
+		console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, //cheerio:cheerio, //require:require,
 		colorsafe:colorsafe, os:os, cp:cp, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION,
 		setTimeout:setTimeoutFiber, setInterval:setIntervalFiber, inService:inService, _serviceFiber:_serviceFiber,
 		readFileFiber:readFileFiber
@@ -87,7 +87,7 @@ function initServer() {
 	
 	globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
 		  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
-		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','cheerio','initApp',
+		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','initApp', //'cheerio',
 		  'inService','_serviceFiber','readFileFiber']);
 
 	loadScripts(".", ["serve.js"], null, true);
@@ -197,7 +197,7 @@ function _send(fn, args, app, awaitReturn) {
     var msg={mid:_mid++, fn:fn, args:args, cb:cb};
     if(app.connection || (inService && process.send)) {
 		//log("SND "+msg.mid+" "+fn);
-		//console.log("MSG: "+util.inspect(msg));
+		//console.log("MSG.args: "+util.inspect(msg.args));
 		if(app._sendq) {
 			app.sent.push(app._sendq);
 			app.connection.sendUTF(JSON.stringify(app._sendq));

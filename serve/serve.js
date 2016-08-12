@@ -465,13 +465,13 @@ function handleCallback(obj) {
 	return;
     }
     if(obj.mid === null) {
-        log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
+        //log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
 	var id=obj.args[0].id;
 	if(id) {
 	    var onClick=app.context._objects[id].onClick;
 	    Fiber(function() {
 		try { onClick(); }
-		catch(e) { log(e.stack); }
+		catch(e) { log(colorsafe.red(e.stack)); }
 	    }).run();
 	}
 	return;
@@ -485,7 +485,7 @@ function handleCallback(obj) {
 		var cb=sent.cb;
 		app.sent.splice(xa,1);
 		if(cb) {
-		    log('RCV ' + obj.mid + ' '+fname+'='+JSON.stringify(obj.args)); //message.utf8Data);
+		    //log('RCV ' + obj.mid + ' '+fname+'='+JSON.stringify(obj.args)); //message.utf8Data);
 		    Fiber(function() {
 			try { cb(null, obj.args); }
 			catch(e) { log("handleCallback ERROR (obj="+JSON.stringify(obj)+"; "+e.stack); }

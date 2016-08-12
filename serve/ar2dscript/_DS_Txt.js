@@ -7,33 +7,26 @@
 /////////////////////////////////////////////////////////////////////////////////
 
 function _DS_Txt(text,width,height,options) {
-    this.text=text;
-    this.width=width;
-    this.height=height;
+    _newId(this,'Txt');
+    this.attrs={text:text};
+    this.css.width=width;
+    this.css.height=height;
     this.options=options;
-    var h=_createNode('DIV', _newId(this,'Txt'))
-    h.css('background',this.backColor='#00000000');
-    h.css('color',this.textColor='#aaa');
-    h.css('font-family','Verdana,sans-serif');
-    h.html(text);
-    this.htmlObj=h;
-    this.visible=false;
+    this.css['background']='rgba(0, 0, 0, 0)'; // Transparent background by default
+    this.css['color']='#fff'; // White text by default
 }
 
 function _DS_Txt_SetTextSize(size,mode) {
-    if(parseInt(size) == size) { size += 'pt'; }
-    this.htmlObj.css('font-size',this.size=size);
-    if(this.visible) { _rmtSet(this, this.htmlObj.html()); }
+    _load("_DS_Obj");
+    _DS_Obj_SetTextSize.call(this, size, mode);
 }
 
 function _DS_Txt_SetText(text) {
-    //console.log("SetText: this.id="+this.id);
-    this.htmlObj.html(text);
-    if(this.visible) { _rmtSet(this, this.htmlObj.html()); }
+    _load("_DS_Obj");
+    _DS_Obj_SetText.call(this, text);
 }
 
 function _DS_Txt_SetTextColor(color) {
-    this.htmlObj.css('color',this.textColor=color);
-    if(this.visible) { _rmtSet(this, this.htmlObj.html()); }
-    console.log("HTML: "+$.html());
+    _load("_DS_Obj");
+    _DS_Obj_SetTextColor.call(this, color);
 }

@@ -8,29 +8,28 @@
 /////////////////////////////////////////////////////////////////////////////////
 
 function _DS_App_CreateText(text,width,height,options) {
-    //console.log("CreateText: this.id="+this.id);
     _load("_DS_Txt");
     return new _DS_Txt(text,width,height,options).id;
 }
 
 function _DS_App_CreateLayout(type, options) {
-    //console.log("CreateLayout: this.id="+this.id);
     _load("_DS_Lay");
     return new _DS_Lay(type, options).id;
+}
+
+function _DS_App_CreateScroller(width, height, options) {
+    _load("_DS_Scr");
+    return new _DS_Scr(width, height, options).id;
 }
 
 function _DS_App_AddLayout(layout) {
     layout=_objects[layout];
     //console.log("AddLayout: this.id="+this.id+";layout.id="+layout.id);
-    layout.parent={id:this.id, cls:"App"};
-	_DS_Lay_SetSize.call(layout); // Already set size, just update units
-    this.layouts.push({id:layout.id});
-    var body=$('body');
-    var lid='#'+layout.htmlObj.attr('id');
-    body.append($(lid))
-    //console.log("AddLayout htm="+$.html(lid));
-    _rmtAdd({htmlObj:body}, $.html(lid));
-	layout.visible=true;
+    layout.parent={id:this.id, cls:"App", visible:true};
+    _DS_Lay_SetSize.call(layout); // Already set size, just update units
+    this.children.push({id:layout.id});
+    layout.visible=true;
+    _set.call(this, {children:this.children});
 }
 
 function _DS_App_GetModel() {
