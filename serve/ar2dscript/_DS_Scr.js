@@ -23,11 +23,18 @@ function _DS_Scr(width, height, options) {
     
     this.width=width; this.height=height;
     
-    if(opts.fillx) { this.width=95; }
-    if(opts.filly) { this.height=95; } // Slightly less to avoid scroll bars
+  //  if(opts.fillx) { this.width=95; }
+//    if(opts.filly) { this.height=95; } // Slightly less to avoid scroll bars
+    
+    
+    this.height=height=7;    
+    
     _DS_Scr_SetSize.call(this); // Already set
-    this.css.background='linear-gradient(black, rgba(64, 64, 64, 255))';
+    this.css.background='rgba(0, 0, 0, 0)';
     this.css.color='grey';
+    this.css.margin='auto'; // Center
+    this.css.overflow='auto'; // Turn on scroll bars
+    this.css['white-space']='nowrap'; // Force lines to full width
     this.opts=opts;
 }
 

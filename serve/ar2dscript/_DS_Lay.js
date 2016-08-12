@@ -24,7 +24,8 @@ function _DS_Lay(type, options) {
     if(opts.fillx) { this.width=95; }
     if(opts.filly) { this.height=95; } // Slightly less to avoid scroll bars
     _DS_Lay_SetSize.call(this); // Already set
-    this.css.background='linear-gradient(black, rgba(64, 64, 64, 1))';
+    //this.css.background='linear-gradient(black, rgba(64, 64, 64, 1))';
+    this.css.background='rgba(0, 0, 0, 0)';
     this.css.color='grey';
     this.opts=opts;
 }
