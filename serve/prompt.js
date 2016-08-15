@@ -14,56 +14,58 @@ var navigator={
 };
 
 function prompt(promptMsg, dftVal) {
-	var h1=promptMsg[0] == '#';
-	var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
-	var actualPrompt=(!h1 && !(h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/)));
-	if(inService && (actualPrompt || !runLocal(dftVal))) {
-		if(process.send) { return rmtPrompt(promptMsg, dftVal); }
-		else { throw new Error("Disconnected service"); }
-	}
-	if(actualPrompt) { // e.g. App.CreateLayout(
-		//console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
-		return _prompt(promptMsg, dftVal); 	
+    var h1=promptMsg[0] == '#';
+    var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
+    // MOST SPECIFIC MATCH: dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))); // BUT '(' was not in ScrollTo or ScrollBy
+    var actualPrompt=(!h1 && !(h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*/)));
+    //console.log("inService="+inService+";actualPrompt="+actualPrompt+";runLocal="+runLocal(dftVal)+";h1="+h1+";h2="+h2+";match="+dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/)+";promptMsg="+promptMsg+";dftVal="+dftVal);
+    if(inService && (actualPrompt || !runLocal(dftVal))) {
+	    if(process.send) { return rmtPrompt(promptMsg, dftVal); }
+	    else { throw new Error("Disconnected service"); }
     }
-	var id=promptMsg[0]=='#' ? promptMsg.substr(1) : promptMsg;
-	if(id == '') { id=1; }
-	var args=dftVal.split('\f');
-	//console.log("id="+id+";args="+JSON.stringify(args));
-	var a0=args[0];
-	var xa=a0.indexOf('(');
-	var fn=null;
-	const _main="_Main_";
-	var cls=_main;
-	if(xa > -1) {
-	    fn=a0.substr(0, xa);
-	    if(xa < a0.length-1) { args[0]=a0.substr(xa+1); }
-	    else { args.shift(); }
+    if(actualPrompt) { // e.g. App.CreateLayout(
+	    //console.log("promptMsg="+util.inspect(promptMsg)+";dftVal="+dftVal);
+	    return _prompt(promptMsg, dftVal); 	
+    }
+    var id=promptMsg[0]=='#' ? promptMsg.substr(1) : promptMsg;
+    if(id == '') { id=1; }
+    var args=dftVal.split('\f');
+    //console.log("id="+id+";args="+JSON.stringify(args));
+    var a0=args[0];
+    var xa=a0.indexOf('(');
+    var fn=null;
+    const _main="_Main_";
+    var cls=_main;
+    if(xa > -1) {
+	fn=a0.substr(0, xa);
+	if(xa < a0.length-1) { args[0]=a0.substr(xa+1); }
+	else { args.shift(); }
+    }
+    else { fn=a0; args.shift(); }
+    var ofn=fn;
+    xa=fn.indexOf('.');
+    var clsBase=_main;
+    if(xa > -1) { clsBase=fn.substr(0,xa); cls="_DS_"+clsBase; fn=fn.substr(xa+1); }
+    _load(cls);
+    for(xa=0; xa<args.length; xa++) {
+	if(typeof args[xa] === 'string') {
+		    if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
+		    if(args[xa] === "false" || args[xa] === "true") { args[xa]=eval(args[xa]); }
 	}
-	else { fn=a0; args.shift(); }
-	var ofn=fn;
-	xa=fn.indexOf('.');
-	var clsBase=_main;
-	if(xa > -1) { clsBase=fn.substr(0,xa); cls="_DS_"+clsBase; fn=fn.substr(xa+1); }
-	_load(cls);
-	for(xa=0; xa<args.length; xa++) {
-	    if(typeof args[xa] === 'string') {
-			if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
-			if(args[xa] === "false" || args[xa] === "true") { args[xa]=eval(args[xa]); }
-	    }
-	}
-	fn=cls+"_"+fn;
-	var f=eval(fn);
-	var obj=_objects[id];
-	if(!obj) { obj={cls:clsBase,id:id}; }
-	if(ofn != "_Init") { log(colorsafe.blue(ofn+" "+JSON.stringify(args))); }
-	var ret=f.apply(obj, args); // Passes new object to called function
-	if(ret) {
-	    var r=(typeof ret === 'number') ? '#'+ret : JSON.stringify(ret);
-		const maxLen=80;
-		if(r.length > maxLen) { r=r.substr(0,maxLen)+"..."; }
-	    log(colorsafe.blue("-> "+r)); 
-	}
-	return ret;
+    }
+    fn=cls+"_"+fn;
+    var f=eval(fn);
+    var obj=_objects[id];
+    if(!obj) { obj={cls:clsBase,id:id}; }
+    if(ofn != "_Init") { log(colorsafe.blue(ofn+" "+JSON.stringify(args))); }
+    var ret=f.apply(obj, args); // Passes new object to called function
+    if(ret) {
+	var r=(typeof ret === 'number') ? '#'+ret : JSON.stringify(ret);
+	    const maxLen=80;
+	    if(r.length > maxLen) { r=r.substr(0,maxLen)+"..."; }
+	log(colorsafe.blue("-> "+r)); 
+    }
+    return ret;
 }
 
 function rmtPrompt(promptMsg, dftVal) {
@@ -127,17 +129,20 @@ function _newId(obj, cls) {
 
 function _set(attrs) { // NOTE: attrs may contain only a partial set of attributes of "this" (or some other object)
     var visibleSet=false;
-    if(attrs.visible) { visibleSet=true; }
+    if(attrs.visible || (attrs.child && attrs.child.visible)) { visibleSet=true; }
     //console.log("attrs=",attrs,";visibleSet="+visibleSet);
-    if(this.visible && attrs.children && !attrs.id) { // Updated children: Send them all
-	_sendDescendants(attrs);
-    }
+//     if(this.visible && attrs.children && !attrs.id) { // Updated children: Send them all
+// 	if(attrs.child) { _sendDescendants(attrs.child); }
+// 	//_sendDescendants(attrs);
+// 	_send('upd', [attrs], _app, _debugRPC); // send attrs (adding id attribute)
+//     }
     if(_allVisible(this)) { // If this and all parents are visible:
+	console.log("visibleSet="+visibleSet);
 	if(visibleSet) { // And we JUST were set visible
 	    _sendDescendants(this); // Send all visible children
-	    var obj=_partialCopy(this);
-	    try { _send('crt', [obj], _app, _debugRPC); }
-	    catch(e) { console.log(colorsafe.red("ERROR: "+e.stack+"; this="+util.inspect(obj))); }
+// 	    var obj=_partialCopy(this);
+// 	    try { _send('crt', [obj], _app, _debugRPC); }
+// 	    catch(e) { console.log(colorsafe.red("ERROR: "+e.stack+"; this="+util.inspect(obj))); }
 	}
 	else { attrs.id=this.id; _send('upd', [attrs], _app, _debugRPC); } // send attrs (adding id attribute)
     } 
@@ -147,19 +152,36 @@ function _set(attrs) { // NOTE: attrs may contain only a partial set of attribut
 }
 
 function _sendDescendants(obj) {
+    if(!obj) { return; }
+    console.log("SENDING CHILD: "+obj.id);
     var chs=obj.children;
     for(var xa=0; xa<chs.length; xa++) {
-	var child=_partialCopy(_objects[chs[xa].id]);
-	_sendDescendants(child);
-	if(child.visible) {
-	    try { _send('crt', [child], _app, true); }
-	    catch(e) { console.log(colorsafe.red("ERROR: "+e.stack+"; this="+util.inspect(child))); }
-	}
+	//console.log("obj["+_objects[xa].id+"]="+_objects[xa].id]);
+	_sendDescendants(_objects[chs[xa].id]);
+    }
+    var child=_partialCopy(obj);
+    if(child.visible) {
+	try { _send('crt', [child], _app, true); }
+	catch(e) { console.log(colorsafe.red("ERROR: "+e.stack+"; this="+util.inspect(child))); }
     }
 }
 
+
+// function _sendDescendants(obj) {
+//     console.log("SENDING CHILD: "+obj.id);
+//     var chs=obj.children;
+//     for(var xa=0; xa<chs.length; xa++) {
+// 	var child=_partialCopy(_objects[chs[xa].id]);
+// 	_sendDescendants(child);
+// 	if(child.visible) {
+//  	    try { _send('crt', [child], _app, true); }
+//  	    catch(e) { console.log(colorsafe.red("ERROR: "+e.stack+"; this="+util.inspect(child))); }
+// 	}
+//     }
+// }
+
 function _partialCopy(obj) {
-    return {cls:obj.cls, id:obj.id, visible:obj.visible, attrs:obj.attrs, css:obj.css, children:obj.children, parent:obj.parent};
+    return {cls:obj.cls, id:obj.id, visible:obj.visible, attrs:obj.attrs, css:obj.css, children:obj.children, parent:obj.parent, extra:obj.extradfd};
 }
 
 function _allVisible(obj) {
@@ -176,7 +198,7 @@ function _allVisible(obj) {
 
 // Return decimal RGB+Alpha representation from hex Alpha+RGB
 function _RGBA(hexARGB) {
-    if(hexARGB[0] !== '#') { return hexARGB; }
+    if(hexARGB[0] !== '#' || hexARGB.length < 9) { return hexARGB; }
     var A=(parseInt(hexARGB.substring(1,3),16)/255).toFixed(2);
     return 'rgba('+parseInt(hexARGB.substring(3,5),16)+','+
 	parseInt(hexARGB.substring(5,7),16)+','+

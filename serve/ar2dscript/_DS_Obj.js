@@ -52,7 +52,66 @@ function _DS_Obj_SetPadding(left,top,right,bottom,mode) {
     }});
 }
 
-// function SetSize(width, height) {
-//     var obj=global._obj(module, arguments);
-//     console.log("SetSize: "+JSON.stringify(obj));
-// }
+function _DS_Obj_SetSize(width, height) {
+    if(width) { this.width=width; }
+    if(height) { this.height=height; }
+//     if (this.parent) {
+// 	var cls=this.parent.cls;
+// 	if(cls == 'App' || cls=='Scr') { this.hUnit="vw"; this.vUnit="vh"; }
+//     }
+//     else { this.hUnit=this.vUnit="%"; }
+//    if(this.parent && this.parent.cls === "Lay") { this.hUnit=this.vUnit="%"; }
+    if(this.cls === "Lay") { this.hUnit=this.vUnit="%"; }
+    else { this.hUnit="vw"; this.vUnit="vh"; }
+    if(this.width) { this.css.width=(this.width*100)+this.hUnit; }
+    if(this.height) { this.css.height=(this.height*100)+this.vUnit; }
+    if(width && height) {
+	_set.call(this, {css:{width:this.css.width, height:this.css.height}});
+    }
+    else if(width) { _set.call(this, {css:{width:this.css.width}}); }
+    else if(height) { _set.call(this, {css:{height:this.css.height}}); }
+}
+
+function _DS_Obj_AddChild(child, order) {
+    child=_objects[child];
+    child.parent={id:this.id};
+    child.visible=true;
+    // NOTE: redundant since we send children? //
+    //_set.call(child, {visible:true});
+
+    // 0 = back, end of list=front (drawn last)
+    if(order < 0) { order=-order; }
+    if(!order || order > this.children.length) { order=this.children.length; }
+    this.children.splice(order, 0, {id:child.id});
+    if(this.opts) {
+	//console.log(" OPTIONS: "+util.inspect(this.opts)+";id="+child.id);
+	var op=this.opts;
+	if(op.hAlign == 'center') {
+	}
+	if(op.vAlign == 'center') {
+	}
+	if(op.direction == 'vertical') {
+	    //console.log("class frameTC on "+child.id);
+	    //child.div.style.display='table';
+	    //child.odiv=wrapObject(child, child.div);
+	}
+    }
+    _set.call(this, {children:this.children, child:child});
+}
+
+function _DS_Obj_RemoveChild(child) {
+    child=_objects[child];
+    child.parent={};
+    child.visible=false;
+    // NOTE: redundant since we send children? //
+    //_set.call(child, {visible:false});
+    var idx=-1;
+    for(var xa=0; xa<this.children.length; xa++) {
+		// , {id:child.id}
+		if(this.children[xa].id === child.id) { idx=xa; break; }
+    }
+    this.children.splice(idx, 1);
+    _set.call(this, {children:this.children});
+}
+
+
