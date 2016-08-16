@@ -80,6 +80,14 @@ function rmtPrompt(promptMsg, dftVal) {
 	return ret.data;
 }
 
+function _prompt(promptMsg, dftVal) {
+    return _send('prompt', [promptMsg, dftVal], _app, true); // true=awaitReturn
+}
+
+function alert(msg) {
+    _send('alert', [msg], _app, true); // true=awaitReturn
+}
+
 // Returns true if this function (e.g. SetAlarm) must run in the service,
 // not in the app that spawned it
 function runLocal(dftVal) {
@@ -97,14 +105,6 @@ function runLocal(dftVal) {
 
 function exec(cmd) {
 	return _exec(cmd, _app);
-}
-
-function alert(msg) {
-    _send('alert', [msg], _app, true); // true=awaitReturn
-}
-
-function _prompt(promptMsg, dftVal) {
-    return _send('prompt', [promptMsg, dftVal], _app, true); // true=awaitReturn
 }
 
 function _load(cls, context) {
@@ -137,7 +137,7 @@ function _set(attrs) { // NOTE: attrs may contain only a partial set of attribut
 // 	_send('upd', [attrs], _app, _debugRPC); // send attrs (adding id attribute)
 //     }
     if(_allVisible(this)) { // If this and all parents are visible:
-	console.log("visibleSet="+visibleSet);
+	//console.log("visibleSet="+visibleSet);
 	if(visibleSet) { // And we JUST were set visible
 	    _sendDescendants(this); // Send all visible children
 // 	    var obj=_partialCopy(this);
@@ -153,7 +153,7 @@ function _set(attrs) { // NOTE: attrs may contain only a partial set of attribut
 
 function _sendDescendants(obj) {
     if(!obj) { return; }
-    console.log("SENDING CHILD: "+obj.id);
+    //console.log("SENDING CHILD: "+obj.id);
     var chs=obj.children;
     for(var xa=0; xa<chs.length; xa++) {
 	//console.log("obj["+_objects[xa].id+"]="+_objects[xa].id]);
@@ -181,7 +181,8 @@ function _sendDescendants(obj) {
 // }
 
 function _partialCopy(obj) {
-    return {cls:obj.cls, id:obj.id, visible:obj.visible, attrs:obj.attrs, css:obj.css, children:obj.children, parent:obj.parent, extra:obj.extradfd};
+    if(obj.extra) { console.log("EXTRA: ",obj.extra); }
+    return {cls:obj.cls, id:obj.id, visible:obj.visible, attrs:obj.attrs, css:obj.css, children:obj.children, parent:obj.parent, extra:obj.extra};
 }
 
 function _allVisible(obj) {

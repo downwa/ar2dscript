@@ -67,6 +67,15 @@ function _DS_Scr_RemoveChild(child) {
 }
 
 function _DS_Scr_ScrollTo(sx, sy) {
-    _set.call(this, {extra:{scrollx:this.extra.scrollx=sx, scrolly:this.extra.scrolly=sy}});
-    //_send('ScrollTo', [this.id,sx,sy], _app, _debugRPC); // true=awaitReturn
+    console.log("ScrollTo:",{extra:{scrollx:this.extra.scrollx=sx, scrolly:this.extra.scrolly=sy}});
+    //_set.call(this, {extra:{scrollx:this.extra.scrollx=sx, scrolly:this.extra.scrolly=sy}});
+    _send('ScrollTo', [this.id+'_inner',sx,sy], _app, _debugRPC); // true=awaitReturn
+}
+
+function _DS_Scr_GetScrollX() {
+    return _send('GetScrollX', [this.id+'_inner'], _app, true); // true=awaitReturn
+}
+
+function _DS_Scr_GetScrollY() {
+    return _send('GetScrollY', [this.id+'_inner'], _app, true); // true=awaitReturn
 }
