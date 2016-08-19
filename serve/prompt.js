@@ -238,8 +238,8 @@ function _parseLayoutOptions(options) {
 }
 
 function _plo(opt,val,dftVal,setVal) {
-    if(!dftVal) { dftVal=val; }
-    if(!setVal) { setVal=val; }
+    if(typeof dftVal === 'undefined' || dftVal === null) { dftVal=val; }
+    if(typeof setVal === 'undefined' || setVal === null) { setVal=val; }
     if(opt.indexOf(","+val+",") > -1 || opt.indexOf(val+",") == 0 || opt.indexOf(","+val) == opt.length-val.length-1 || opt == val) { return setVal; }
     return dftVal;
 }

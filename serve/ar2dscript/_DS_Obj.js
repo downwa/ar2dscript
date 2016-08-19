@@ -64,8 +64,9 @@ function _DS_Obj_SetSize(width, height) {
 //     if(this.cls === "Lay") { this.hUnit=this.vUnit="%"; }
 //     else { this.hUnit="vw"; this.vUnit="vh"; }
     // If this is a Scroller or parent is App
-    if ((this.parent && this.parent.cls == "App") || this.cls == "Scr") { this.hUnit="vw"; this.vUnit="vh"; }
-    else { this.hUnit=this.vUnit="%"; }
+//     if ((this.parent && this.parent.cls == "xApp") || this.cls == "Scrx") { this.hUnit="vw"; this.vUnit="vh"; }
+//     else { this.hUnit=this.vUnit="%"; }
+    this.hUnit="vw"; this.vUnit="vh";
     if(this.width) { this.css.width=(this.width*100)+this.hUnit; }
     if(this.height) { this.css.height=(this.height*100)+this.vUnit; }
     if(width && height) {

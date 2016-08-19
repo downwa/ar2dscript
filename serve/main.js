@@ -196,7 +196,7 @@ function _send(fn, args, app, awaitReturn) {
     }
     var msg={mid:_mid++, fn:fn, args:args, cb:cb};
     if(app.connection || (inService && process.send)) {
-		//log("SND "+msg.mid+" "+fn);
+		log("SND "+msg.mid+" "+fn);
 		//console.log("MSG.args: "+util.inspect(msg.args));
 		if(app._sendq) {
 			app.sent.push(app._sendq);
@@ -210,7 +210,7 @@ function _send(fn, args, app, awaitReturn) {
 			process.send({msg: {_serviceForward: msg}});
 		}
 		app.sent.push(msg);
-		 
+		log("app.sent("+app.session+").length="+app.sent.length);
     }
     else {
 		app._sendq=msg;

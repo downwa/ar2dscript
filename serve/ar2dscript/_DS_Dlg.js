@@ -27,8 +27,8 @@ function _DS_Dlg(title, options) {
     this.css['background']='gray';
     this.css['color']='white';
     if(title) { this.attrs.text="<h1 style='color:#0000BB'>"+title+"</h1><hr style='color:#0000BB' />"; }
-    this.css['border-color']='gray';
-    this.css['border-style']='solid';
+//     this.css['border-color']='gray';
+//     this.css['border-style']='solid';
 }
 
 function _DS_Dlg_SetBackColor(color) {
@@ -54,8 +54,8 @@ function _DS_Dlg_SetBackColor(color) {
 // -1 = automatic position
 function _DS_Dlg_SetPosition(left, top, width, height) {
     // FIXME: Need better auto-position
-    if(left == -1) { left=0.1; }
-    if(top == -1) { top=0.1; }
+//     if(left == -1) { left=0.1; }
+//     if(top == -1) { top=0.1; }
     var css={css:{
 	position: this.css.position='fixed',
 	left:   this.css.left   = (100*left)+'vw',

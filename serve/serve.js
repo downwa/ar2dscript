@@ -91,14 +91,19 @@ function getApp(name, session) {
 		if(!statFiber(appPath).isFile()) { return null; }
 	    }
 	}
-	log("getApp: appPath="+appPath);
+	log("getApp: appPath="+appPath+";session="+session);
 	// NOTE: Below is a possible approach for retrieving serialized app state
 	//var appState=fsp.join(os.tmpdir(), "session-" + name + "-" + session + ".json")
 	//var app=JSON.parse(readFileFiber(appState));
 	//if(app && options.debug) { log(("STATE: "+appState+"="+JSON.stringify(app)).blue); } // console.dir
-	var app=_apps[name];
-	if(!app) { app=_apps[name]={name:name, path:appPath, VERSION:VERSION,
-		isService:true, alarms:[], sent:[], services:[], Fiber:Fiber}; }
+	var aid=name+"-"+session;
+	var app=_apps[aid];
+	if(!app) { app=_apps[aid]={name:name, path:appPath, VERSION:VERSION,
+		alarms:[], sent:[], services:[], Fiber:Fiber, session:session};
+ 	    //console.log(colorsafe.green("NEW session for "+name+": session="+app.session)); }
+	//else {
+ 	    //console.log(colorsafe.green("EXISTING SESSION RESUMED for "+name+": session="+app.session));
+	}
 	return app;
     }
     catch(err) {
@@ -332,7 +337,7 @@ function httpHandler(request, response) {
 	}
 	catch(e) {
 	    respond(8,response, cookies, 500, null, null,"<html><head><title>Server Error</title></head><body>"+
-		"<h1>Server Error: "+filePath+"</h1></body></html>");
+		"<h1>Server Error: "+(filePath?filePath:e.message)+"</h1></body></html>");
 	    log(colorsafe.red('ERR CRASH '+filePath+"; e="+e.stack));
 	    return;
 	}
@@ -422,9 +427,20 @@ function dsgui(request) {
 	return;
     }
     connection = request.accept('droidscript-gui-protocol', request.origin);
-    log('CON '+request.origin+" for "+appName+"; session="+session+"; fiber="+Fiber.current);
+    log('CON '+request.origin+" for "+appName+"; session="+session+"; fiber="+Fiber.current+"; connApps.length="+Object.keys(connApps).length);
     Fiber(function() { 
-	try { connApps[connection]=app; runApp(app, session, connection); }
+	try {
+	    connApps[connection]=app;
+	    if(!app.started) {
+		app.started=true;
+		runApp(app, session, connection);
+	    }
+	    else {
+		log(colorsafe.green('XSN '+appName+'; Existing session='+session));
+		app.connection=connection; // Save new connection
+	    }
+	    
+	}
 	catch(e) {}
 // 	for(var xa=0; xa<app.services.length; xa++) {
 // 	    try { runServiceReady(app, session, connection); }
@@ -457,7 +473,7 @@ function handleWsMessage(message) {
 
 //* NOTE: 'this' should be bound to connection before calling **/
 function handleCallback(obj) {
-    //log('Received Message: ' + JSON.stringify(obj));
+    log('Received Message: ' + JSON.stringify(obj));
     var app=connApps[this];
     if(obj.dump) {
 	log("DMP "+JSON.stringify(app.context._objects));
@@ -484,6 +500,7 @@ function handleCallback(obj) {
 		var fname=sent.fn;
 		var cb=sent.cb;
 		app.sent.splice(xa,1);
+		log("app.sent("+app.session+").length="+app.sent.length);
 		if(cb) {
 		    //log('RCV ' + obj.mid + ' '+fname+'='+JSON.stringify(obj.args)); //message.utf8Data);
 		    Fiber(function() {
@@ -495,7 +512,7 @@ function handleCallback(obj) {
 	    }
 	}
     }
-    log('Received Unknown Message: ' + JSON.stringify(obj));
+    log('Received Unknown Message: ' + JSON.stringify(obj)+"; app.sent="+util.inspect(app.sent)+';mid('+obj.mid+')==sent.mid('+app.sent.mid+')***;session='+app.session);
 }
 
 /*	
