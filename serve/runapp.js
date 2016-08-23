@@ -12,7 +12,7 @@ _app.proc.on('message', (msg) => {
 	}
 	else if (msg.msg && msg.msg._serviceForward) {
 	    var s=msg.msg._serviceForward;
-	    console.log('PARENT got message: s=', s);
+	    //console.log('PARENT got message: s=', s);
 	    _app.proc.send({_appReply:prompt(s.promptMsg, s.dftVal)}); // Send reply to child (app)
 	}
 	else {

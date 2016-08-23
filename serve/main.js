@@ -153,7 +153,7 @@ function onWatchResult(err,watcherInstance,isWatching){
 
 
 function loadScripts(appName, scriptNames, context, isSystem) {
-    console.log("appName="+appName+";scriptNames=",scriptNames);
+    //console.log("appName="+appName+";scriptNames=",scriptNames);
     var scrInfos=readScripts(appName, scriptNames, isSystem);
     for(var xa=0; xa<scrInfos.length; xa++) {
 	var scrInfo=scrInfos[xa];

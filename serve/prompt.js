@@ -110,8 +110,8 @@ function exec(cmd) {
 function _load(cls, context) {
     if(!context) { context=_app.context; }
     if(eval("typeof "+cls) === 'undefined') {
-		//console.log("cls="+cls+";context="+context);
-		loadScripts(".", ['./ar2dscript/'+cls+'.js'], context, true); // true=awaitReturn
+	//console.log("cls="+cls+";context="+context);
+	loadScripts(".", ['./ar2dscript/'+cls+'.js'], context, true); // true=awaitReturn
     }
 }
 

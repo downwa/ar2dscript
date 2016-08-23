@@ -119,7 +119,7 @@ function getApp(name, session) {
 
 function runApp(app, session, connection) {
     try {
-	log("RUN "+app.name+"; session="+session+"; connection="+connection+"; VERSION="+VERSION);
+	log("RUN "+app.name+"; session="+session+"; connection="+connection+"; VERSION="+VERSION+"; context="+app.context);
 
 	// NOTE: Only one connection per session is supported.  Send message to previous connected tab/window
 	// NOTE: to grey out so it appears inactive (as it is), and ask the client to disconnect.
@@ -143,6 +143,7 @@ function runApp(app, session, connection) {
 	};
 	var ctx = new vm.createContext(sandbox);
 	_VERSION=VERSION;
+	app.context=ctx;
 	loadScripts(".", ['./prompt.js'], ctx, true); // Used to forward app requests
 	loadScripts(".", ["runapp.js"], ctx, true);
     }
@@ -509,7 +510,7 @@ function handleWsMessage(message) {
 
 //* NOTE: 'this' should be bound to session before calling **/
 function handleCallback(obj) {
-    log('Received Message: ' + JSON.stringify(obj));
+    //log('Received Message: ' + JSON.stringify(obj));
     var app=sessApps[this];
     if(obj.dump) {
 	log("DMP "+JSON.stringify(app.context._objects));
