@@ -19,7 +19,7 @@ function prompt(promptMsg, dftVal) {
     // MOST SPECIFIC MATCH: dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))); // BUT '(' was not in ScrollTo or ScrollBy
     var actualPrompt=(!h1 && !(h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*/)));
     //console.log("inService="+inService+";actualPrompt="+actualPrompt+";runLocal="+runLocal(dftVal)+";h1="+h1+";h2="+h2+";match="+dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/)+";promptMsg="+promptMsg+";dftVal="+dftVal);
-    if(inService && (actualPrompt || !runLocal(dftVal))) {
+    if((inService || inApp) && (actualPrompt || !runLocal(dftVal))) {
 	    if(process.send) { return rmtPrompt(promptMsg, dftVal); }
 	    else { throw new Error("Disconnected service"); }
     }

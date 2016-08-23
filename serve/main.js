@@ -41,56 +41,65 @@ log("Main: DS="+ds);
 loadConfig();
 
 if(fs.statSync(ds).isDirectory()) {
-	var apks=fs.readdirSync(ds, null, true).filter( function(file) {
-	return file.indexOf("DroidScript_") == 0 && file.endsWith(".apk");
-	}); // Sorted, finds latest version of apk (if any)
-	var apk=(apks.length > 0) ? apks[apks.length-1] : null;
-	if(!apk) { throw Error("Missing DroidScript_*.apk in "+ds); }
-	ds=fsp.join(ds,apk);
-	log("Using DS="+ds);
+    var apks=fs.readdirSync(ds, null, true).filter( function(file) {
+    return file.indexOf("DroidScript_") == 0 && file.endsWith(".apk");
+    }); // Sorted, finds latest version of apk (if any)
+    var apk=(apks.length > 0) ? apks[apks.length-1] : null;
+    if(!apk) { throw Error("Missing DroidScript_*.apk in "+ds); }
+    ds=fsp.join(ds,apk);
+    log("Using DS="+ds);
 }
 
 if (typeof inService !== 'undefined' && inService !== null && inService) {
-	initService(inService);
+    inApp=false;
+    initService(inService);
 }
-else { inService=false; _serviceFiber=null; initServer(); }
+else {
+    inService=false; 
+    if (typeof inApp !== 'undefined' && inApp !== null && inApp) {
+	var app={name:inApp, path:inApp+'.js', VERSION:VERSION,
+		inApp:inApp, alarms:[], sent:[], services:[], Fiber:Fiber};
+	initApp(app, inApp, inApp+'.js');
+    }
+    else { _serviceFiber=null; inApp=false; initServer(); }
+}
 
 function initService(sName) {
-	var app={name:fsp.basename(fsp.dirname(sName)), path:sName, VERSION:VERSION,
-		inService:inService, alarms:[], sent:[], services:[], Fiber:Fiber};
-	try { initApp(app, ".", sName); }
-	catch(e) {
-		log(colorsafe.red("ERROR: initApp("+sName+"): "+e.message));
-		throw e;
-	}
+    var app={name:fsp.basename(fsp.dirname(sName)), path:sName, VERSION:VERSION,
+	    inService:inService, alarms:[], sent:[], services:[], Fiber:Fiber};
+    try { initApp(app, ".", sName); }
+    catch(e) {
+	log(colorsafe.red("ERROR: initApp("+sName+"): "+e.message));
+	throw e;
+    }
 }
 
 function initApp(app, sDir, sName) {
-	var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
-		console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, //cheerio:cheerio, //require:require,
-		colorsafe:colorsafe, os:os, cp:cp, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION,
-		setTimeout:setTimeoutFiber, setInterval:setIntervalFiber, inService:inService, _serviceFiber:_serviceFiber,
-		readFileFiber:readFileFiber
-		// setTimoutFiber needed so callbacks will be run in fiber
-	};
-	app.context = new vm.createContext(sandbox);
-	loadScripts(".", ['./prompt.js'], app.context, true);
-	loadScripts(ds, ["assets/app.js"], app.context, false);
-	loadScripts(sDir, [sName], app.context, false);
-	vm.runInContext('OnStart()',app.context,{displayErrors:true});
+    var sandbox={_app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts,
+	    console:console, fsp:fsp, process:process, fs:fs, vm:vm, util:util, //cheerio:cheerio, //require:require,
+	    colorsafe:colorsafe, os:os, cp:cp, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION,
+	    setTimeout:setTimeoutFiber, setInterval:setIntervalFiber, inApp:inApp, inService:inService, _serviceFiber:_serviceFiber,
+	    readFileFiber:readFileFiber
+	    // setTimoutFiber needed so callbacks will be run in fiber
+    };
+    app.context = new vm.createContext(sandbox);
+    loadScripts(".", ['./prompt.js'], app.context, true);
+    loadScripts(ds, ["assets/app.js"], app.context, false);
+    loadScripts(sDir, [sName], app.context, false);
+    vm.runInContext('OnStart()',app.context,{displayErrors:true});
 }
 
 function initServer() {
-	log("Watching for changes...");
-	watchr.watch({paths: ['serve', 'resources'],
-		listeners: {error: onWatchResult, watching: onWatchResult, change: onFileChanged, next: onWatchResult}});
-	
-	globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
-		  'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
-		  'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','initApp', //'cheerio',
-		  'inService','_serviceFiber','readFileFiber']);
+    log("Watching for changes...");
+    watchr.watch({paths: ['serve', 'resources'],
+	    listeners: {error: onWatchResult, watching: onWatchResult, change: onFileChanged, next: onWatchResult}});
+    
+    globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber','readFileFiber',
+		'readdirFiber','__dirname','loadScripts','ds','globalize','cacheFromZip','readScripts','_send',
+		'colorsafe','setTimeoutFiber','setIntervalFiber','execFiber','VERSION','initApp', //'cheerio',
+		'inService','inApp','_serviceFiber','readFileFiber']);
 
-	loadScripts(".", ["serve.js"], null, true);
+    loadScripts(".", ["serve.js"], null, true);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 /************************************** IMPLEMENTATION ****************************************/
@@ -144,7 +153,7 @@ function onWatchResult(err,watcherInstance,isWatching){
 
 
 function loadScripts(appName, scriptNames, context, isSystem) {
-	//console.log("appName="+appName+";scriptNames="+scriptNames);
+    console.log("appName="+appName+";scriptNames=",scriptNames);
     var scrInfos=readScripts(appName, scriptNames, isSystem);
     for(var xa=0; xa<scrInfos.length; xa++) {
 	var scrInfo=scrInfos[xa];
@@ -174,16 +183,16 @@ function readScripts(appName, scriptNames, isSystem) { // Read scripts from .apk
 	}
     }
     else {
-		var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
-		//console.log("isSystem="+isSystem+";cwd="+process.cwd()+";appsDir="+options.appsDir+";appName="+appName+"***");
-		for(var xa=0; xa<scriptNames.length; xa++) {
-		    var scriptName= scriptNames[xa];
-			// /sdcard/DroidScript/sdcard/backups/apps/assets/app.js
-			//console.log("scriptName="+scriptName+";sep="+fsp.sep+";dir="+dir+"***");
-		    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
-		    //log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
-		    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
-		}
+	var dir=isSystem ? fsp.join(process.cwd(), "serve") : fsp.join(options.appsDir, appName);
+	//console.log("isSystem="+isSystem+";cwd="+process.cwd()+";appsDir="+options.appsDir+";appName="+appName+"***");
+	for(var xa=0; xa<scriptNames.length; xa++) {
+	    var scriptName= scriptNames[xa];
+		// /sdcard/DroidScript/sdcard/backups/apps/assets/app.js
+		//console.log("scriptName="+scriptName+";sep="+fsp.sep+";dir="+dir+"***");
+	    if(scriptName[0] != fsp.sep) { scriptName=fsp.join(dir, scriptName); }
+	    //log("readScripts: appName="+appName+";scriptName="+scriptName+"***");
+	    rets.push({script:fs.readFileSync(scriptName), scriptName: scriptName});
+	}
     }
     return rets;
 }
@@ -195,8 +204,8 @@ function _send(fn, args, app, awaitReturn) {
         cb=function(err, args) { fiber.run({err:err, data:args[0]}); }
     }
     var msg={mid:_mid++, fn:fn, args:args, cb:cb};
-    if(app.connection || (inService && process.send)) {
-		log("SND "+msg.mid+" "+fn);
+    if(app.connection || (inService && process.send) || (inApp && process.send)) {
+		//log("SND "+msg.mid+" "+fn);
 		//console.log("MSG.args: "+util.inspect(msg.args));
 		if(app._sendq) {
 			app.sent.push(app._sendq);
@@ -209,12 +218,15 @@ function _send(fn, args, app, awaitReturn) {
 		else if(inService && process.send) {
 			process.send({msg: {_serviceForward: msg}});
 		}
+		else if(inApp && process.send) {
+			process.send({msg: {_appForward: msg}});
+		}
 		app.sent.push(msg);
-		log("app.sent("+app.session+").length="+app.sent.length);
+		//log("app.sent("+app.session+").length="+app.sent.length);
     }
     else {
-		app._sendq=msg;
-		log("QUE "+msg.mid+" "+fn); 
+	app._sendq=msg;
+	log("QUE "+msg.mid+" "+fn); 
     }
     if(awaitReturn) { 
         var ret=app.Fiber.yield();

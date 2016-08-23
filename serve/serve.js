@@ -5,22 +5,23 @@
 log("__________________________________________________________________________");
 log("ar2dscript starting...");
 
-var WebSocketServer = require('websocket').server;
+const WebSocketServer = require('websocket').server;
+const columnParser = require('node-column-parser'); // columnParser() 
 //var serialize = require('node-serialize'); // Objects including functions
-var process = require('process'); // cwd
-var crypto = require('crypto'); // sha256 (sessions)
-var Fiber = require('fibers'); // Threading
+//const process = require('process'); // cwd
+const cp = require('child_process');
+const crypto = require('crypto'); // sha256 (sessions)
+const Fiber = require('fibers'); // Threading
 //var yauzl = require("yauzl"); // Unzip
-
-
+const util = require('util'); // inspect
+const vm = require('vm');
 
 var http = require('http'); // Server
-//var util = require("util"); // inspect
 var fsp = require('path'); // path join
 var fs = require('fs'); // createReadStream
 var os = require('os'); // tmpdir
 
-var connApps=[]; // app for each connection
+var sessApps=[]; // app for each connection (was connApps)
 //var _conns=[]; // connection for each app (by name)
 var _apps=[]; // Apps (by name)
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,9 +38,7 @@ wsServer.on('request', wsHandler);
 
 globalize(['log','require','options','parseCookies','sendCookies','statFiber','accessFiber',
 	  'readFileFiber','readdirFiber','__dirname','loadScripts','ds','globalize',
-	  'cacheFromZip','VERSION','inService','_serviceFiber']);
-loadScripts(".", ["runapp.js"], null, true);
-
+	  'cacheFromZip','VERSION','inApp','inService','_serviceFiber']);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,11 +71,12 @@ function startAutoBoots() {
     // FIXME: Only start apps that called app.SetAutoBoot(true)
     var ab=options.autoboots;
     for(var xa=0; xa<ab.length; xa++) {
-		log("AutoBoot: "+ab[xa]);
-		Fiber(function() {
-			var a=getApp(ab[xa]);
-			runApp(a);
-		}).run();    
+	    log("AutoBoot: "+ab[xa]);
+	    Fiber(function() {
+		var a=getApp(ab[xa]);
+		a.started=true;
+		runApp(a);
+	    }).run();    
     }
 }
 
@@ -114,6 +114,42 @@ function getApp(name, session) {
 	return null;
 	//log("getApp: ENOENT: empty");
 	//return {name:name};
+    }
+}
+
+function runApp(app, session, connection) {
+    try {
+	log("RUN "+app.name+"; session="+session+"; connection="+connection+"; VERSION="+VERSION);
+
+	// NOTE: Only one connection per session is supported.  Send message to previous connected tab/window
+	// NOTE: to grey out so it appears inactive (as it is), and ask the client to disconnect.
+	if(connection) {
+		if(app.connection && app.connection != connection) {
+			console.log("DIM");
+			_send('dim', null, app);
+		}
+		app.connection=connection; // Save new connection
+	}
+	
+	// NOTE: Ensure that functions use the global context 'app.context'
+	//initApp(app, app.name, app.name+".js");
+	
+	var sandbox={ _app:app, _send,_send, log:log, loadScripts:loadScripts, readScripts:readScripts, // _app:app,
+		console:console, fsp:fsp, process:process, fs:fs, //vm:vm, util:util, //cheerio:cheerio, //require:require,
+		colorsafe:colorsafe, cp:cp, columnParser:columnParser, _exec:execFiber, _VERSION:VERSION, // os:os, 
+		setTimeout:setTimeoutFiber, setInterval:setIntervalFiber, inApp:inApp, inService:inService, _serviceFiber:_serviceFiber,
+		readFileFiber:readFileFiber
+		// setTimoutFiber needed so callbacks will be run in fiber
+	};
+	var ctx = new vm.createContext(sandbox);
+	_VERSION=VERSION;
+	loadScripts(".", ['./prompt.js'], ctx, true); // Used to forward app requests
+	loadScripts(".", ["runapp.js"], ctx, true);
+    }
+    catch(e) {
+	log(colorsafe.red("runApp#1("+app.name+") ERROR: "+e.stack));
+	app.connection.sendUTF(JSON.stringify({mid:0, fn:'alert', args:['Server Error#1: '+e.message]}));
+	throw e;
     }
 }
 
@@ -427,10 +463,10 @@ function dsgui(request) {
 	return;
     }
     connection = request.accept('droidscript-gui-protocol', request.origin);
-    log('CON '+request.origin+" for "+appName+"; session="+session+"; fiber="+Fiber.current+"; connApps.length="+Object.keys(connApps).length);
+    log('CON '+request.origin+" for "+appName+"; session="+session+"; fiber="+Fiber.current+"; sessApps.length="+Object.keys(sessApps).length);
     Fiber(function() { 
 	try {
-	    connApps[connection]=app;
+	    sessApps[session]=app;
 	    if(!app.started) {
 		app.started=true;
 		runApp(app, session, connection);
@@ -451,13 +487,13 @@ function dsgui(request) {
     
     //loadScripts(".", ["serve.js"], null, true);
    
-    connection.on('message', handleWsMessage.bind(connection));
+    connection.on('message', handleWsMessage.bind(session));
     connection.on('close', function(reasonCode, description) {
         log('DIS ' + connection.remoteAddress);
     });
 }
 
-/** NOTE: 'this' should be bound to connection before calling **/
+/** NOTE: 'this' should be bound to session before calling **/
 function handleWsMessage(message) {
     if (message.type === 'utf8') {
 	var obj=null;
@@ -471,10 +507,10 @@ function handleWsMessage(message) {
     }
 }
 
-//* NOTE: 'this' should be bound to connection before calling **/
+//* NOTE: 'this' should be bound to session before calling **/
 function handleCallback(obj) {
     log('Received Message: ' + JSON.stringify(obj));
-    var app=connApps[this];
+    var app=sessApps[this];
     if(obj.dump) {
 	log("DMP "+JSON.stringify(app.context._objects));
 	log("DMP "+JSON.stringify(app.context._objects[obj.id]));
@@ -500,7 +536,7 @@ function handleCallback(obj) {
 		var fname=sent.fn;
 		var cb=sent.cb;
 		app.sent.splice(xa,1);
-		log("app.sent("+app.session+").length="+app.sent.length);
+		//log("app.sent("+app.session+").length="+app.sent.length);
 		if(cb) {
 		    //log('RCV ' + obj.mid + ' '+fname+'='+JSON.stringify(obj.args)); //message.utf8Data);
 		    Fiber(function() {
