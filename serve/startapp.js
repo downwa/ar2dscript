@@ -42,7 +42,7 @@ process.on('message', (msg) => {
 			vm.runInContext(scr, context, {filename:"serve/main.js"});
 		}
 		else {
-			//console.log("SENDING reply:",msg)
+			console.log("CHILD SENDING reply:",msg)
 			_serviceFiber.fiber.run({err:null, data:msg._appReply});
 //			_serviceFiber.fiber=null;
 		}

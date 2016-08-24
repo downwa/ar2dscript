@@ -13,13 +13,15 @@ var navigator={
     userAgent:"Android Emulation for Linux"
 };
 
+
 function prompt(promptMsg, dftVal) {
+    if(!promptMsg) { console.log("prompt=null,dftVal=",dftVal); return; }
     var h1=promptMsg[0] == '#';
     var h2=(parseInt(promptMsg) || promptMsg[0] == '0');
     // MOST SPECIFIC MATCH: dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/))); // BUT '(' was not in ScrollTo or ScrollBy
     var actualPrompt=(!h1 && !(h2 && dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*/)));
     //console.log("inService="+inService+";actualPrompt="+actualPrompt+";runLocal="+runLocal(dftVal)+";h1="+h1+";h2="+h2+";match="+dftVal.match(/^[A-Z][a-z]*\.[A-Z][A-Za-z]*\(/)+";promptMsg="+promptMsg+";dftVal="+dftVal);
-    if((inService || inApp) && (actualPrompt || !runLocal(dftVal))) {
+    if((inService || inApp) && (actualPrompt || !runLocal(dftVal, inApp))) {
 	    if(process.send) { return rmtPrompt(promptMsg, dftVal); }
 	    else { throw new Error("Disconnected service"); }
     }
@@ -49,8 +51,8 @@ function prompt(promptMsg, dftVal) {
     _load(cls);
     for(xa=0; xa<args.length; xa++) {
 	if(typeof args[xa] === 'string') {
-		    if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
-		    if(args[xa] === "false" || args[xa] === "true") { args[xa]=eval(args[xa]); }
+	    if(args[xa] === "null" || args[xa] === "undefined") { args[xa]=null; }
+	    if(args[xa] === "false" || args[xa] === "true") { args[xa]=eval(args[xa]); }
 	}
     }
     fn=cls+"_"+fn;
@@ -74,6 +76,7 @@ function rmtPrompt(promptMsg, dftVal) {
 	}
 	_serviceFiber.fiber=_app.Fiber.current;
 	var msg={promptMsg:promptMsg, dftVal:dftVal};
+	console.log("rmtPrompt: ",msg);
 	process.send({msg: {_serviceForward: msg}}); // Child (service) send to parent
 	var ret=_app.Fiber.yield(); // Await reply from parent
 	if(ret.err) { throw ret.err; }
@@ -88,17 +91,27 @@ function alert(msg) {
     _send('alert', [msg], _app, true); // true=awaitReturn
 }
 
-// Returns true if this function (e.g. SetAlarm) must run in the service,
+// FOR SERVICES: Returns true if this function (e.g. SetAlarm) must run in the service,
 // not in the app that spawned it
-function runLocal(dftVal) {
+// FOR APPS: Returns true unless this function must run in the parent that spawned it.
+function runLocal(dftVal, inApp) {
     var args=dftVal.split('\f');
-    switch(args[0]) {
-	    case "App.SetAlarm(": {
-		var options=(args.length >= 7 && args[6]) ? args[6].toLowerCase() : "";
-		if(options.indexOf("app") > -1) { return false; } // Handle in App, not Service
-		return true;
-	    }
-	    case "App.SendMessage(": return true;
+    var a0=args[0].split('(')[0];
+    //console.log("runLocal: a0="+a0);
+    if(!inApp) switch(a0) {
+	case "App.SetAlarm": {
+	    var options=(args.length >= 7 && args[6]) ? args[6].toLowerCase() : "";
+	    if(options.indexOf("app") > -1) { return false; } // Handle in App, not Service
+	    return true;
+	}
+	case "App.SendMessage": return true;
+	default: return false;
+    }
+    else switch(a0) {
+	//case "App.AddLayout": return false;
+	default: return true;
+	//case "Btn.SetOnClick": return true;
+	//default: return false; //true;
     }
     return false;
 }
@@ -199,6 +212,7 @@ function _allVisible(obj) {
 
 // Return decimal RGB+Alpha representation from hex Alpha+RGB
 function _RGBA(hexARGB) {
+    if(!hexARGB) { return 'black'; }
     if(hexARGB[0] !== '#' || hexARGB.length < 9) { return hexARGB; }
     var A=(parseInt(hexARGB.substring(1,3),16)/255).toFixed(2);
     return 'rgba('+parseInt(hexARGB.substring(3,5),16)+','+

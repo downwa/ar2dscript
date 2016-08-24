@@ -21,10 +21,9 @@ function _DS_Lay(type, options) {
     else if(opts.hAlign == "right") { this.css['text-align']='right'; }
     else { this.css['text-align']='left'; }
     
-
-    if(opts.fillx || opts.filly) {
-	console.log(colorsafe.red("options="+options+"; cls="+this.cls+"; opts="+JSON.stringify(opts)));
-    }
+//     if(opts.fillx || opts.filly) {
+// 	console.log(colorsafe.red("options="+options+"; cls="+this.cls+"; opts="+JSON.stringify(opts)));
+//     }
     
     if(opts.fillx) { this.width=0.94; }
     if(opts.filly) { this.height=0.96; } // Slightly less to avoid scroll bars

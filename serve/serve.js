@@ -517,6 +517,7 @@ function handleCallback(obj) {
 	log("DMP "+JSON.stringify(app.context._objects[obj.id]));
 	return;
     }
+    log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
     if(obj.mid === null) {
         //log('RCV ' + obj.mid + ' '+JSON.stringify(obj.args)); //message.utf8Data);
 	var id=obj.args[0].id;
@@ -539,7 +540,7 @@ function handleCallback(obj) {
 		app.sent.splice(xa,1);
 		//log("app.sent("+app.session+").length="+app.sent.length);
 		if(cb) {
-		    //log('RCV ' + obj.mid + ' '+fname+'='+JSON.stringify(obj.args)); //message.utf8Data);
+		    log('RCV ' + obj.mid + ' '+fname+'='+JSON.stringify(obj.args)+"; cb="+cb); //message.utf8Data);
 		    Fiber(function() {
 			try { cb(null, obj.args); }
 			catch(e) { log("handleCallback ERROR (obj="+JSON.stringify(obj)+"; "+e.stack); }

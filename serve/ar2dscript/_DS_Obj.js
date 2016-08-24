@@ -42,6 +42,24 @@ function _DS_Obj_SetTextColor(color) {
     _set.call(this, {css:{color:this.css.color=_RGBA(color)}});
 }
 
+function _DS_Obj_SetStyle(color1, color2, radius, strokeColor, strokeWidth, shadow) {
+    strokeWidth=strokeWidth ? strokeWidth : 0;
+    shadow=shadow ? shadow : 0;
+    _set.call(this, {css:{
+	'background-color': this.css['background-color']=_RGBA(color1),
+	'background-image': this.css['background-image']='linear-gradient(to bottom, '+_RGBA(color1)+', '+_RGBA(color2)+')',
+	'border-radius':    this.css['border-radius']=radius+'px',
+	'box-shadow':       this.css['box-shadow']=shadow+'px '+shadow+'px '+shadow+'px #888888',
+	'border':           this.css['border']=strokeWidth+'px solid '+_RGBA(strokeColor)
+    }});
+}
+
+function _DS_Obj_SetTextShadow(radius, dx, dy, color) {
+    _set.call(this, {css:{
+	'text-shadow': this.css['text-shadow']=dx+'px '+dy+'px '+radius+'px '+_RGBA(color)
+    }});
+}
+
 
 function _DS_Obj_SetPadding(left,top,right,bottom,mode) {
     _set.call(this, {css:{
@@ -55,17 +73,6 @@ function _DS_Obj_SetPadding(left,top,right,bottom,mode) {
 function _DS_Obj_SetSize(width, height) {
     if(width) { this.width=width; }
     if(height) { this.height=height; }
-//     if (this.parent) {
-// 	var cls=this.parent.cls;
-// 	if(cls == 'App' || cls=='Scr') { this.hUnit="vw"; this.vUnit="vh"; }
-//     }
-//     else { this.hUnit=this.vUnit="%"; }
-//    if(this.parent && this.parent.cls === "Lay") { this.hUnit=this.vUnit="%"; }
-//     if(this.cls === "Lay") { this.hUnit=this.vUnit="%"; }
-//     else { this.hUnit="vw"; this.vUnit="vh"; }
-    // If this is a Scroller or parent is App
-//     if ((this.parent && this.parent.cls == "xApp") || this.cls == "Scrx") { this.hUnit="vw"; this.vUnit="vh"; }
-//     else { this.hUnit=this.vUnit="%"; }
     this.hUnit="vw"; this.vUnit="vh";
     if(this.width) { this.css.width=(this.width*100)+this.hUnit; }
     if(this.height) { this.css.height=(this.height*100)+this.vUnit; }

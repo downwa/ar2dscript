@@ -30,3 +30,8 @@ function _DS_Txt_SetTextColor(color) {
     _load("_DS_Obj");
     _DS_Obj_SetTextColor.call(this, color);
 }
+
+function _DS_Txt_SetTextShadow(radius, dx, dy, color) {
+    _load("_DS_Obj");
+    _DS_Obj_SetTextShadow.call(this, radius, dx, dy, color);
+}

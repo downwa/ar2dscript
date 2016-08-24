@@ -75,6 +75,7 @@ function main() {
         //console.log('message received');
         if (typeof e.data === 'string') {
 	    //alert('data='+e.data);
+	    log('data='+e.data);
             var d=JSON.parse(e.data);
 	    // e.g. "crt[cls=Scr]"
 	    if(!filterLog || (d.fn == filtFn && (filtAttr != "" ? d.args[0][filtAttr] == filtVal : true))) {
@@ -89,7 +90,9 @@ function main() {
 		    var obj=null; // FIXME
 		    //console.log("      "+d.fn+" "+JSON.stringify(args));
 		    var ret=fun.apply(obj, args);
-		    if(d.cb !== 'N') { send({mid:d.mid, args:[ret]}); } // mid=Message Id
+		    if(d.cb !== 'N') { 
+			log("SND mid="+d.mid);
+			send({mid:d.mid, args:[ret]}); } // mid=Message Id
 		}
 		catch(e) {
 		    var err=e.message+": executing "+d.fn+": "+fun.toString(); //+" with "+JSON.stringify(args);

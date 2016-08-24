@@ -19,6 +19,11 @@ function _DS_Btn_SetTextSize(size,mode) {
     _DS_Obj_SetTextSize.call(this, size, mode);
 }
 
+function _DS_Btn_SetStyle(color1, color2, radius, strokeColor, strokeWidth, shadow) {
+    _load("_DS_Obj");
+    _DS_Obj_SetStyle.call(this, color1, color2, radius, strokeColor, strokeWidth, shadow);
+}
+
 function _DS_Btn_SetText(text) {
     _load("_DS_Obj");
     _DS_Obj_SetText.call(this, text);
@@ -29,7 +34,13 @@ function _DS_Btn_SetTextColor(color) {
     _DS_Obj_SetTextColor.call(this, color);
 }
 
+function _DS_Btn_SetTextShadow(radius, dx, dy, color) {
+    _load("_DS_Obj");
+    _DS_Obj_SetTextShadow.call(this, radius, dx, dy, color);
+}
+
 function _DS_Btn_SetOnClick(callback) {
     this.onClick=eval(callback);
+// FIXME: Need to eval local callback, but need to execute in remote app?
     _set.call(this, {attrs:{onClick:this.attrs.onClick='onClick('+this.id+')'}});
 }

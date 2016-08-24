@@ -29,6 +29,7 @@ function _DS_App_AddLayout(layout) {
     _DS_Lay_SetSize.call(layout); // Already set size, just update units
     this.children.push({id:layout.id});
     layout.visible=true;
+    // FIXME: Must do a remote call
     _set.call(this, {children:this.children, child:layout});
 }
 
