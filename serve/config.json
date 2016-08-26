@@ -1,1 +1,1 @@
-{"port":80,"debug":true,"sdcard":"/sdcard","appsDir":"/sdcard/DroidScript","apksDir":"/sdcard/DroidScript/APKs", "autoboots":[]}
+{"port":80,"debug":"all","sdcard":"/sdcard","appsDir":"/sdcard/DroidScript","apksDir":"/sdcard/DroidScript/APKs", "autoboots":[]}

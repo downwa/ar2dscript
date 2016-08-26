@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- ar2dscript Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
+     Licensed under the MIT License (MIT)
+-->
+<html>
+    <head>
+        <title>Loading ar2dscript app...</title>
+        <script src="/scripts/client.js"></script>
+        <link rel="icon" type="image/png" href="Img/favicon.png" />
+	<style>
+	    BODY { /* Default style for apps (most are dynamically generated) */
+		font-family: Verdana,sans-serif;
+		height: 100vh;
+		width: 100vw;
+		overflow:hidden; 
+		white-space:nowrap; /* Use separate scroller if needed */
+		background: black; /* For browsers that do not support gradients */
+		background: linear-gradient(black, rgba(64, 64, 64, 1)); /* Standard syntax (must be last) */
+	    }
+	</style>
+    </head>
+    <body onload="main()" onresize="onResize()" id="1"></body>
+</html>

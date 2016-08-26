@@ -1,1 +1,1 @@
-git add save *.js serve/*.js serve/ar2dscript/*.js WebRoot/
+git add save *.js serve/ WebRoot/
