@@ -2,7 +2,7 @@
  * Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
  * Licensed under the MIT License (MIT)
  */
-(typeof define !== "function" ? function($){ $(require, exports, module); } : define)(function(require, exports, module, undefined) {
+//(typeof define !== "function" ? function($){ $(require, exports, module); } : define)(function(require, exports, module, undefined) {
 
 exports.wsserv = wsserv;
 
@@ -39,4 +39,4 @@ function wsHandler(request) {
 
 // *********************************************************************************
 
-});
+//});

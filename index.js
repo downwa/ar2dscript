@@ -129,7 +129,6 @@ if (cluster.isMaster) {
     
     function onDisconnect() { // Bind to worker
 	if(this.timeout) { clearTimeout(this.timeout); this.timeout=null; }
-	else { console.warn("onDisconnect with no timeout set"); }
     }
     
     function initWorker(worker) {

@@ -2,20 +2,22 @@
  * Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
  * Licensed under the MIT License (MIT)
  */
-(typeof define !== "function" ? function($){ $(require, exports, module); } : define)(function(require, exports, module, undefined) {
+//(typeof define !== "function" ? function($){ $(require, exports, module); } : define)(function(require, exports, module, undefined) {
 
 exports.init = init;
 exports.getApp = getApp;
+exports.runApp = runApp;
 exports.changedApps = changedApps;
 exports.listAppsApks = listAppsApks;
 
+const colorsafe = require('colors/safe');
+const version = require('./version');
+const PRODUCT=version.PRODUCT;
+const VERSION=version.VERSION;
 const Fiber = require('fibers'); // Threading
 const ffs = require('./fiberfill'); // Replacements for fs blocking functions, using Fibers
 const fsp = require('path'); // path join
 const os = require('os'); // tmpdir
-const version = require('./version');
-const PRODUCT=version.PRODUCT;
-const VERSION=version.VERSION;
 
 var omtime1=0,omtime2=0;
 
@@ -51,18 +53,19 @@ function getApp(name, session) {
 }
 
 function appState(appId, state) {    
-    var appState=fsp.join(os.tmpdir(), "session-" + appId + ".json")
+    var appStateFile=fsp.join(os.tmpdir(), "session-" + appId + ".json")
     if(state) { // Set state
-	ffs.writeFileFiber(appState, JSON.stringify(state)); // FIXME: Will crash if state is circular
+	ffs.writeFileFiber(appStateFile, JSON.stringify(state)); // FIXME: Will crash if state is circular
 	return;
     }
     var app=null;
-    try { app=JSON.parse(ffs.readFileFiber(appState)); }
+    try { app=JSON.parse(ffs.readFileFiber(appStateFile)); }
     catch(err) {
 	if(err.code !== 'ENOENT') { console.error("getApp "+err); throw err; }
 	return null;
     }
-    if(app) { console.debug(("STATE: "+appState+"="+JSON.stringify(app)).blue); }
+    if(state) { console.debug(("STATE: "+appStateFile+"="+JSON.stringify(state)).blue); }
+    console.log("appState: appId=",appId,";state=",state);
     return app;
 }
 
@@ -96,7 +99,52 @@ function listAppsApks(listApps, listApks) {
     });
     return apps;
 }
+
+function runApp(app, awaitReturn) {    
+    app.proc = require('child_process').fork('serve/startapp.js');
+
+    app.proc.on('message', (msg) => {
+	/*app.*/Fiber(function() { // Callbacks need a new fiber
+	    //console.log('PARENT got message: ', msg);
+	    if(msg._appLog) {
+		process.stdout.write(colorsafe.cyan(msg._appLog));
+	    }
+	    else if (msg.msg && msg.msg._appForward) {
+		// NOTE: Differing from Services (which use prompt() to run functions either locally or in the parent app),
+		// NOTE: app messages are instead forwarded directly to the browser, and replys from browser are relayed to app.
+		var s=msg.msg._appForward;
+		app.proc.send({_appReply: _send(s.fn, s.args, app, msg.awaitReturn)}); // Forward reply of browser to child (app)
+	    }
+	    else if(msg._browserReply || msg._browserReplyErr) {
+		console.log('PARENT got reply:', msg);
+		app.curFiber.run({err:new Error(msg._browserReplyErr), data:msg._browserReply});
+	    }
+	    else {
+		console.log('PARENT got invalid message:', msg);
+		//this.onMessage(msg.msg); 
+	    }
+	}.bind(this)).run();
+    });
+    
+    var cb=null;
+    if(awaitReturn) {
+        app.curFiber=/*app.*/Fiber.current;
+        //cb=function(err, args) { fiber.run({err:err, data:args[0]}); }
+    }
+    //var msg={mid:_mid++, fn:fn, args:args, cb:cb};
+    app.proc.send({start: app.name, session:app.session});
+    if(awaitReturn) { 
+        console.log("WAITING FOR APP...");
+        var ret=/*app.*/Fiber.yield();
+        console.log("RETURN FROM YIELD to APP: "+JSON.stringify(ret)+"***");
+        if(ret.err) { throw ret.err; }
+        return ret.data;
+    }
+    else { console.log("NOT WAITING for anyone..."); }
+    return null;
+}
+
 // 
 // *********************************************************************************
 
-});
+//});

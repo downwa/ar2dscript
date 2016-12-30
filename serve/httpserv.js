@@ -2,7 +2,7 @@
  * Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
  * Licensed under the MIT License (MIT)
  */
-(typeof define !== "function" ? function($){ $(require, exports, module); } : define)(function(require, exports, module, undefined) {
+//(typeof define !== "function" ? function($){ $(require, exports, module); } : define)(function(require, exports, module, undefined) {
 
 exports.httpserv = httpserv;
 
@@ -23,6 +23,7 @@ function httpserv(options) {
     require('./wsserv').wsserv(server);
     const appmain = require('./appmain.js').init(options);
     getApp = appmain.getApp;
+    runApp = appmain.runApp;
     changedApps = appmain.changedApps;
     listAppsApks = appmain.listAppsApks;
 }
@@ -113,9 +114,9 @@ function serveRegularFile(filePath, response, cookies) {
 }
 
 function handleApps(appName, response, cookies) {
-    var fail="";
+    var fail="",app=null;
     if(appName == "") { fail="No application specified"; }
-    else if(!getApp(appName, cookies.session)) { fail="Application not found: "+appName; }
+    else if(!(app=getApp(appName, cookies.session))) { fail="Application not found: "+appName; }
     if(fail !== "") {
 	respond(4,response, cookies, 404, null, null, "<html><head><title>("+fail+")</title></head>"+
 	    '<body><a href="/" style="background:white; color:black; display:;" id="indexLink">&lt;Index</a>'+
@@ -123,12 +124,46 @@ function handleApps(appName, response, cookies) {
 	console.error(colorsafe.red(fail));
 	return false;
     }
-     return serveRegularFile(normalizePath('index.html'), response, cookies);
+    //return serveRegularFile(normalizePath('index.html'), response, cookies);
+    return serveApp(app, response, cookies);
+}
+
+/*
+ 
+ 
+<!DOCTYPE html>
+<!-- ar2dscript Copyright 2016 by Warren E. Downs on behalf of Choggiung Limited.
+     Licensed under the MIT License (MIT)
+-->
+<html>
+    <head>
+	<title>Loading ar2dscript app...</title>
+    </head>
+    <body onload="main()" onresize="onResize()" id="1">
+	<script type="text/javascript"><!--
+	    
+	//-->
+	</script>
+	<noscript>
+	    Javascript is not supported by this browser.
+	</noscript>
+    </body>
+</html>
+
+*/
+function serveApp(app, response, cookies) {
+    app.title=runApp(app,true);
+    respond(4,response, cookies, 200, null, null,
+	'<!DOCTYPE html>\n'+
+	'<html><head><title>'+app.title+'</title>\n<style>\n'+app.css+'\n</style>\n'+
+	'<script type="text/javascript" src="/scripts/client.js"></script></head>\n'+
+	'<body onload="main()" onresize="onResize()" id="1"></body></html>');
 }
 
 function httpHandler(request, response) {
     Fiber(function() {
 	try {
+	    //console.log("RCVHEADERS:",request.headers);
 	    var cookies = parseCookies(request.headers.cookie);
 	    console.log(colorsafe.green('REQ ' + request.url+"; cookies="+JSON.stringify(cookies)));
 	    var url=decodeURI(request.url);
@@ -214,7 +249,7 @@ function respond(at,response, cookies, code, contentType, contentLen, content, r
     if(contentLen) { headers['Content-Length']=contentLen; }
     if(redirect)   { headers['Location']=redirect; }
     response.writeHead(code, headers);
-    //log("HEADERS#"+at+" sent: contentLen="+contentLen+";content="+content+"***");
+    //console.log("HEADERS=",headers);
     if(content) { response.write(content); response.end(); return true; }
     return false;
 }
@@ -267,4 +302,4 @@ function sendCookies(cookies) {
 
 // *********************************************************************************
 
-});
+//});
